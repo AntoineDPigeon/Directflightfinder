@@ -7,3 +7,4 @@ frontend/dist/
 .vite/
 .vercel/
 *.tsbuildinfo
+frontend/src/**/*.js
