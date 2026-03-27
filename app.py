@@ -1,15 +1,15 @@
 import asyncio
-import os
 import time
+from concurrent.futures import ThreadPoolExecutor
+from dataclasses import asdict
 from datetime import date
 
-import httpx
-from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-load_dotenv()
+from fast_flights import FlightData, Passengers, create_filter
+from fast_flights.core import get_flights_from_filter
 
 app = FastAPI(title="Direct Flight Finder")
 
@@ -19,8 +19,6 @@ app.add_middleware(
     allow_methods=["GET"],
     allow_headers=["*"],
 )
-
-AMADEUS_BASE = "https://test.api.amadeus.com"
 
 AIRPORTS = [
     {"code": "YUL", "name": "Montreal Trudeau", "drive": "0 min"},
@@ -40,126 +38,64 @@ AIRPORTS = [
 
 DATES = ["2026-11-11", "2026-11-12", "2026-11-13", "2026-11-14", "2026-11-15"]
 
-AIRLINES = {
-    "AC": "Air Canada",
-    "WS": "WestJet",
-    "TS": "Air Transat",
-    "F8": "Flair Airlines",
-    "PD": "Porter Airlines",
-    "NK": "Spirit Airlines",
-    "B6": "JetBlue",
-    "AA": "American Airlines",
-    "DL": "Delta Air Lines",
-    "UA": "United Airlines",
-    "WN": "Southwest Airlines",
-    "G4": "Allegiant Air",
-    "SY": "Sun Country Airlines",
-}
-
 AIRPORT_NAMES = {a["code"]: a["name"] for a in AIRPORTS}
 
-# Token cache
-_token_cache: dict = {"token": None, "expires_at": 0.0}
-
-# Flight results cache: (origin, date) -> (timestamp, results)
+# Cache: (origin, date) -> (timestamp, results)
 _flight_cache: dict[tuple[str, str], tuple[float, list]] = {}
 CACHE_TTL = 900  # 15 minutes
 
-
-async def get_amadeus_token(client: httpx.AsyncClient) -> str:
-    if time.time() < _token_cache["expires_at"]:
-        return _token_cache["token"]
-
-    api_key = os.environ.get("AMADEUS_API_KEY", "")
-    api_secret = os.environ.get("AMADEUS_API_SECRET", "")
-    if not api_key or not api_secret:
-        raise HTTPException(
-            status_code=500,
-            detail="Amadeus API credentials not configured. Set AMADEUS_API_KEY and AMADEUS_API_SECRET in .env",
-        )
-
-    resp = await client.post(
-        f"{AMADEUS_BASE}/v1/security/oauth2/token",
-        data={
-            "grant_type": "client_credentials",
-            "client_id": api_key,
-            "client_secret": api_secret,
-        },
-    )
-
-    if resp.status_code != 200:
-        raise HTTPException(status_code=502, detail="Failed to authenticate with Amadeus API")
-
-    data = resp.json()
-    _token_cache["token"] = data["access_token"]
-    _token_cache["expires_at"] = time.time() + data["expires_in"] - 60
-    return _token_cache["token"]
+_executor = ThreadPoolExecutor(max_workers=5)
 
 
-def parse_flight_offers(origin: str, raw_data: dict) -> list[dict]:
-    flights = []
-    for offer in raw_data.get("data", []):
-        price = offer.get("price", {})
-        for itinerary in offer.get("itineraries", []):
-            segments = itinerary.get("segments", [])
-            if len(segments) != 1:
-                continue  # skip non-direct
-            seg = segments[0]
-            carrier = seg.get("carrierCode", "")
-            flights.append(
-                {
-                    "origin": origin,
-                    "originName": AIRPORT_NAMES.get(origin, origin),
-                    "airline": carrier,
-                    "airlineName": AIRLINES.get(carrier, carrier),
-                    "price": price.get("grandTotal", price.get("total", "0")),
-                    "currency": price.get("currency", "CAD"),
-                    "departure": seg.get("departure", {}).get("at", ""),
-                    "arrival": seg.get("arrival", {}).get("at", ""),
-                    "duration": itinerary.get("duration", ""),
-                    "flightNumber": f"{carrier}{seg.get('number', '')}",
-                }
-            )
-    return flights
-
-
-async def fetch_flights_for(
-    client: httpx.AsyncClient,
-    token: str,
-    origin: str,
-    departure_date: str,
-    semaphore: asyncio.Semaphore,
-) -> list[dict]:
+def search_flights(origin: str, departure_date: str) -> list[dict]:
+    """Search Google Flights for direct flights from origin to FLL on a given date."""
     cache_key = (origin, departure_date)
     cached = _flight_cache.get(cache_key)
     if cached and time.time() - cached[0] < CACHE_TTL:
         return cached[1]
 
-    async with semaphore:
-        try:
-            resp = await client.get(
-                f"{AMADEUS_BASE}/v2/shopping/flight-offers",
-                params={
-                    "originLocationCode": origin,
-                    "destinationLocationCode": "FLL",
-                    "departureDate": departure_date,
-                    "adults": 1,
-                    "nonStop": "true",
-                    "currencyCode": "CAD",
-                    "max": 50,
-                },
-                headers={"Authorization": f"Bearer {token}"},
-                timeout=30.0,
+    try:
+        tfs = create_filter(
+            flight_data=[
+                FlightData(
+                    date=departure_date,
+                    from_airport=origin,
+                    to_airport="FLL",
+                )
+            ],
+            trip="one-way",
+            passengers=Passengers(adults=1),
+            seat="economy",
+            max_stops=0,
+        )
+
+        result = get_flights_from_filter(tfs, currency="CAD")
+
+        flights = []
+        for f in result.flights:
+            if f.stops > 0:
+                continue
+            flights.append(
+                {
+                    "origin": origin,
+                    "originName": AIRPORT_NAMES.get(origin, origin),
+                    "airline": f.name,
+                    "airlineName": f.name,
+                    "price": f.price.replace("CA$", "").replace("$", "").replace(",", "").strip() if f.price else "0",
+                    "currency": "CAD",
+                    "departure": f.departure,
+                    "arrival": f.arrival,
+                    "duration": f.duration,
+                    "flightNumber": f.name,
+                }
             )
-        except httpx.TimeoutException:
-            return []
 
-        if resp.status_code != 200:
-            return []
-
-        flights = parse_flight_offers(origin, resp.json())
         _flight_cache[cache_key] = (time.time(), flights)
         return flights
+
+    except Exception as e:
+        print(f"Error searching {origin} on {departure_date}: {e}")
+        return []
 
 
 class FlightResult(BaseModel):
@@ -183,21 +119,27 @@ class FlightsResponse(BaseModel):
 
 
 @app.get("/api/flights", response_model=FlightsResponse)
-async def get_flights():
-    async with httpx.AsyncClient() as client:
-        token = await get_amadeus_token(client)
-        semaphore = asyncio.Semaphore(5)
+async def get_flights_endpoint():
+    loop = asyncio.get_event_loop()
 
-        tasks = [
-            fetch_flights_for(client, token, airport["code"], d, semaphore)
-            for airport in AIRPORTS
-            for d in DATES
-        ]
+    tasks = [
+        loop.run_in_executor(_executor, search_flights, airport["code"], d)
+        for airport in AIRPORTS
+        for d in DATES
+    ]
 
-        results = await asyncio.gather(*tasks)
+    results = await asyncio.gather(*tasks)
 
     all_flights = [flight for batch in results for flight in batch]
-    all_flights.sort(key=lambda f: float(f["price"]))
+
+    # Sort by price, handling non-numeric gracefully
+    def sort_key(f: dict) -> float:
+        try:
+            return float(f["price"])
+        except (ValueError, TypeError):
+            return float("inf")
+
+    all_flights.sort(key=sort_key)
 
     return FlightsResponse(
         flights=all_flights,
