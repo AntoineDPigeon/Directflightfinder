@@ -33,19 +33,30 @@ No API keys or accounts needed — uses [fast-flights](https://pypi.org/project/
 | YKF | Waterloo ON | ~6 hr |
 | BUF | Buffalo NY | ~6.5 hr |
 
-## Prerequisites
+## Deploy to Vercel
+
+1. Push this repo to GitHub
+2. Import the project in [Vercel](https://vercel.com)
+3. Deploy — no configuration needed, `vercel.json` handles everything
+
+Vercel will:
+- Build the Vue frontend (`frontend/dist/`)
+- Deploy the FastAPI backend as a serverless function (`api/index.py`)
+- Route `/api/*` to the backend, everything else to the frontend
+
+## Local development
+
+### Prerequisites
 
 - Python 3.11+
 - Node.js 18+
 - [pnpm](https://pnpm.io/)
 
-## Setup
-
 ### Backend
 
 ```bash
 pip install -r requirements.txt
-uvicorn app:app --reload
+python app.py
 ```
 
 The API runs on http://localhost:8000.
@@ -58,7 +69,7 @@ pnpm install
 pnpm dev
 ```
 
-Open http://localhost:5173 in your browser.
+Open http://localhost:5173 in your browser (proxies `/api` to the backend automatically).
 
 ## API
 
@@ -71,3 +82,4 @@ Open http://localhost:5173 in your browser.
 
 - **Backend**: Python [FastAPI](https://fastapi.tiangolo.com/) + [fast-flights](https://pypi.org/project/fast-flights/) (Google Flights scraper — no API key needed)
 - **Frontend**: [Vue 3](https://vuejs.org/) + TypeScript + [Vite](https://vite.dev/) (pnpm)
+- **Hosting**: [Vercel](https://vercel.com) (serverless Python + static frontend)
