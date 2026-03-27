@@ -88,10 +88,10 @@ const resultCount = computed(() => filteredFlights.value.length)
 </script>
 
 <template>
-  <div class="app">
-    <header>
-      <h1>Direct Flights to Fort Lauderdale (FLL)</h1>
-      <p class="subtitle">
+  <div class="mx-auto max-w-[1200px] px-4 py-6">
+    <header class="mb-6 text-center">
+      <h1 class="mb-1 text-[1.75rem] font-bold text-[#1a3a5c]">Direct Flights to Fort Lauderdale (FLL)</h1>
+      <p class="text-[0.95rem] text-[#666]">
         From airports within 7 hours of Montreal &middot; Nov 11&ndash;15, 2026 &middot; Prices in CAD
       </p>
     </header>
@@ -111,21 +111,21 @@ const resultCount = computed(() => filteredFlights.value.length)
       @clear-all-dates="clearAllDates"
     />
 
-    <div v-if="loading" class="status loading">
-      <div class="spinner"></div>
+    <div v-if="loading" class="flex flex-col items-center gap-4 px-4 py-12 text-center text-lg text-[#555]">
+      <div class="size-10 animate-spin rounded-full border-4 border-[#e0e0e0] border-t-[#1a3a5c]"></div>
       Searching for direct flights...
     </div>
 
-    <div v-else-if="error" class="status error">
+    <div v-else-if="error" class="rounded-lg bg-[#fce4ec] px-4 py-12 text-center text-lg text-[#c62828]">
       {{ error }}
     </div>
 
     <template v-else>
-      <p class="result-count">{{ resultCount }} flight{{ resultCount !== 1 ? 's' : '' }} found</p>
+      <p class="mt-4 mb-2 text-sm text-[#555]">{{ resultCount }} flight{{ resultCount !== 1 ? 's' : '' }} found</p>
       <FlightTable :flights="filteredFlights" :cheapestByAirport="cheapestByAirport" />
     </template>
 
-    <footer>
+    <footer class="mt-8 text-center text-xs text-[#999]">
       <p>
         Flight data from Amadeus API (test environment &mdash; prices may be synthetic).
         Cheapest flights per airport highlighted in green.
@@ -133,90 +133,3 @@ const resultCount = computed(() => filteredFlights.value.length)
     </footer>
   </div>
 </template>
-
-<style>
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
-
-body {
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  color: #222;
-  background: #f0f2f5;
-  line-height: 1.5;
-}
-
-.app {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 1.5rem 1rem;
-}
-
-header {
-  text-align: center;
-  margin-bottom: 1.5rem;
-}
-
-header h1 {
-  font-size: 1.75rem;
-  color: #1a3a5c;
-  margin-bottom: 0.25rem;
-}
-
-.subtitle {
-  color: #666;
-  font-size: 0.95rem;
-}
-
-.result-count {
-  margin: 1rem 0 0.5rem;
-  font-size: 0.9rem;
-  color: #555;
-}
-
-.status {
-  text-align: center;
-  padding: 3rem 1rem;
-  font-size: 1.1rem;
-}
-
-.status.loading {
-  color: #555;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1rem;
-}
-
-.status.error {
-  color: #c62828;
-  background: #fce4ec;
-  border-radius: 8px;
-}
-
-.spinner {
-  width: 40px;
-  height: 40px;
-  border: 4px solid #e0e0e0;
-  border-top-color: #1a3a5c;
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-footer {
-  margin-top: 2rem;
-  text-align: center;
-  font-size: 0.8rem;
-  color: #999;
-}
-</style>

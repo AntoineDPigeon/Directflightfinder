@@ -34,47 +34,47 @@ const sortOptions: { value: SortField; label: string }[] = [
 </script>
 
 <template>
-  <div class="filters">
-    <div class="filter-group">
-      <div class="filter-header">
-        <h3>Departure Airports</h3>
-        <span class="filter-actions">
-          <button @click="emit('selectAllAirports')" class="link-btn">All</button>
-          <button @click="emit('clearAllAirports')" class="link-btn">None</button>
+  <div class="flex flex-col gap-5 rounded-lg border border-[#e0e0e0] bg-[#f8f9fa] p-5">
+    <div>
+      <div class="flex items-center gap-3">
+        <h3 class="mb-2 text-sm uppercase tracking-wide text-[#555]">Departure Airports</h3>
+        <span class="flex gap-2">
+          <button @click="emit('selectAllAirports')" class="cursor-pointer border-none bg-transparent p-0 text-xs text-[#0066cc] underline hover:text-[#004499]">All</button>
+          <button @click="emit('clearAllAirports')" class="cursor-pointer border-none bg-transparent p-0 text-xs text-[#0066cc] underline hover:text-[#004499]">None</button>
         </span>
       </div>
-      <div class="checkbox-grid">
+      <div class="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-1">
         <label
           v-for="airport in airports"
           :key="airport.code"
-          class="checkbox-item"
+          class="flex cursor-pointer items-center gap-1.5 text-sm"
         >
           <input
             type="checkbox"
             :checked="selectedAirports.has(airport.code)"
             @change="emit('toggleAirport', airport.code)"
           />
-          <span class="airport-label">
+          <span class="flex items-baseline gap-1">
             <strong>{{ airport.code }}</strong>
-            <span class="airport-detail">{{ airport.name }} ({{ airport.drive }})</span>
+            <span class="text-xs text-[#666]">{{ airport.name }} ({{ airport.drive }})</span>
           </span>
         </label>
       </div>
     </div>
 
-    <div class="filter-group">
-      <div class="filter-header">
-        <h3>Dates</h3>
-        <span class="filter-actions">
-          <button @click="emit('selectAllDates')" class="link-btn">All</button>
-          <button @click="emit('clearAllDates')" class="link-btn">None</button>
+    <div>
+      <div class="flex items-center gap-3">
+        <h3 class="mb-2 text-sm uppercase tracking-wide text-[#555]">Dates</h3>
+        <span class="flex gap-2">
+          <button @click="emit('selectAllDates')" class="cursor-pointer border-none bg-transparent p-0 text-xs text-[#0066cc] underline hover:text-[#004499]">All</button>
+          <button @click="emit('clearAllDates')" class="cursor-pointer border-none bg-transparent p-0 text-xs text-[#0066cc] underline hover:text-[#004499]">None</button>
         </span>
       </div>
-      <div class="checkbox-row">
+      <div class="flex flex-wrap gap-3">
         <label
           v-for="date in dates"
           :key="date"
-          class="checkbox-item"
+          class="flex cursor-pointer items-center gap-1.5 text-sm"
         >
           <input
             type="checkbox"
@@ -86,9 +86,13 @@ const sortOptions: { value: SortField; label: string }[] = [
       </div>
     </div>
 
-    <div class="filter-group sort-group">
-      <h3>Sort by</h3>
-      <select :value="sortField" @change="emit('updateSort', ($event.target as HTMLSelectElement).value as SortField)">
+    <div class="flex items-center gap-3">
+      <h3 class="text-sm uppercase tracking-wide text-[#555]">Sort by</h3>
+      <select
+        :value="sortField"
+        @change="emit('updateSort', ($event.target as HTMLSelectElement).value as SortField)"
+        class="rounded border border-[#ccc] px-2.5 py-1.5 text-sm"
+      >
         <option v-for="opt in sortOptions" :key="opt.value" :value="opt.value">
           {{ opt.label }}
         </option>
@@ -96,96 +100,3 @@ const sortOptions: { value: SortField; label: string }[] = [
     </div>
   </div>
 </template>
-
-<style scoped>
-.filters {
-  display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
-  padding: 1.25rem;
-  background: #f8f9fa;
-  border-radius: 8px;
-  border: 1px solid #e0e0e0;
-}
-
-.filter-group h3 {
-  margin: 0 0 0.5rem;
-  font-size: 0.9rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: #555;
-}
-
-.filter-header {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.filter-actions {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.link-btn {
-  background: none;
-  border: none;
-  color: #0066cc;
-  cursor: pointer;
-  font-size: 0.8rem;
-  padding: 0;
-  text-decoration: underline;
-}
-
-.link-btn:hover {
-  color: #004499;
-}
-
-.checkbox-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 0.35rem;
-}
-
-.checkbox-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.75rem;
-}
-
-.checkbox-item {
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  cursor: pointer;
-  font-size: 0.9rem;
-}
-
-.airport-label {
-  display: flex;
-  align-items: baseline;
-  gap: 0.35rem;
-}
-
-.airport-detail {
-  font-size: 0.8rem;
-  color: #666;
-}
-
-.sort-group {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.sort-group h3 {
-  margin: 0;
-}
-
-select {
-  padding: 0.4rem 0.6rem;
-  border-radius: 4px;
-  border: 1px solid #ccc;
-  font-size: 0.9rem;
-}
-</style>
