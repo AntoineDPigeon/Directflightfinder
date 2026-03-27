@@ -2,6 +2,8 @@
 
 Find direct flights to Fort Lauderdale (FLL) from airports within a 7-hour drive of Montreal, with prices in Canadian dollars.
 
+No API keys or accounts needed — uses [fast-flights](https://pypi.org/project/fast-flights/) to get data from Google Flights.
+
 ## Airports searched
 
 | Code | Airport | Drive from Montreal |
@@ -22,16 +24,7 @@ Find direct flights to Fort Lauderdale (FLL) from airports within a 7-hour drive
 
 ## Setup
 
-### 1. Kiwi Tequila API key
-
-Sign up for a free account at [tequila.kiwi.com](https://tequila.kiwi.com) and create a solution to get your API key (free tier: 3000 searches/month).
-
-```bash
-cp .env.example .env
-# Edit .env with your credentials
-```
-
-### 2. Backend
+### 1. Backend
 
 ```bash
 pip install -r requirements.txt
@@ -40,7 +33,7 @@ uvicorn app:app --reload
 
 The API runs on http://localhost:8000.
 
-### 3. Frontend
+### 2. Frontend
 
 ```bash
 cd frontend
@@ -52,5 +45,5 @@ Open http://localhost:5173 in your browser.
 
 ## Tech stack
 
-- **Backend**: Python FastAPI + httpx (async Kiwi Tequila API proxy)
+- **Backend**: Python FastAPI + fast-flights (Google Flights scraper, no API key needed)
 - **Frontend**: Vue 3 + TypeScript + Vite (pnpm)
