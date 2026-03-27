@@ -1,7 +1,7 @@
 import asyncio
 import os
 import time
-from datetime import date
+from datetime import date, datetime
 
 import httpx
 from dotenv import load_dotenv
@@ -20,7 +20,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-AMADEUS_BASE = "https://test.api.amadeus.com"
+KIWI_BASE = "https://api.tequila.kiwi.com"
 
 AIRPORTS = [
     {"code": "YUL", "name": "Montreal Trudeau", "drive": "0 min"},
@@ -38,117 +38,104 @@ AIRPORTS = [
     {"code": "BUF", "name": "Buffalo NY", "drive": "~6.5 hr"},
 ]
 
+# Nov 11-15 in DD/MM/YYYY format for Kiwi API
+DATE_FROM = "11/11/2026"
+DATE_TO = "15/11/2026"
+# ISO dates for the frontend
 DATES = ["2026-11-11", "2026-11-12", "2026-11-13", "2026-11-14", "2026-11-15"]
-
-AIRLINES = {
-    "AC": "Air Canada",
-    "WS": "WestJet",
-    "TS": "Air Transat",
-    "F8": "Flair Airlines",
-    "PD": "Porter Airlines",
-    "NK": "Spirit Airlines",
-    "B6": "JetBlue",
-    "AA": "American Airlines",
-    "DL": "Delta Air Lines",
-    "UA": "United Airlines",
-    "WN": "Southwest Airlines",
-    "G4": "Allegiant Air",
-    "SY": "Sun Country Airlines",
-}
 
 AIRPORT_NAMES = {a["code"]: a["name"] for a in AIRPORTS}
 
-# Token cache
-_token_cache: dict = {"token": None, "expires_at": 0.0}
-
-# Flight results cache: (origin, date) -> (timestamp, results)
-_flight_cache: dict[tuple[str, str], tuple[float, list]] = {}
+# Flight results cache: origin -> (timestamp, results)
+_flight_cache: dict[str, tuple[float, list]] = {}
 CACHE_TTL = 900  # 15 minutes
 
 
-async def get_amadeus_token(client: httpx.AsyncClient) -> str:
-    if time.time() < _token_cache["expires_at"]:
-        return _token_cache["token"]
-
-    api_key = os.environ.get("AMADEUS_API_KEY", "")
-    api_secret = os.environ.get("AMADEUS_API_SECRET", "")
-    if not api_key or not api_secret:
+def get_api_key() -> str:
+    key = os.environ.get("KIWI_API_KEY", "")
+    if not key:
         raise HTTPException(
             status_code=500,
-            detail="Amadeus API credentials not configured. Set AMADEUS_API_KEY and AMADEUS_API_SECRET in .env",
+            detail="Kiwi API key not configured. Set KIWI_API_KEY in .env (get one at tequila.kiwi.com)",
         )
-
-    resp = await client.post(
-        f"{AMADEUS_BASE}/v1/security/oauth2/token",
-        data={
-            "grant_type": "client_credentials",
-            "client_id": api_key,
-            "client_secret": api_secret,
-        },
-    )
-
-    if resp.status_code != 200:
-        raise HTTPException(status_code=502, detail="Failed to authenticate with Amadeus API")
-
-    data = resp.json()
-    _token_cache["token"] = data["access_token"]
-    _token_cache["expires_at"] = time.time() + data["expires_in"] - 60
-    return _token_cache["token"]
+    return key
 
 
-def parse_flight_offers(origin: str, raw_data: dict) -> list[dict]:
+def parse_kiwi_flights(origin: str, raw_data: dict) -> list[dict]:
     flights = []
-    for offer in raw_data.get("data", []):
-        price = offer.get("price", {})
-        for itinerary in offer.get("itineraries", []):
-            segments = itinerary.get("segments", [])
-            if len(segments) != 1:
-                continue  # skip non-direct
-            seg = segments[0]
-            carrier = seg.get("carrierCode", "")
-            flights.append(
-                {
-                    "origin": origin,
-                    "originName": AIRPORT_NAMES.get(origin, origin),
-                    "airline": carrier,
-                    "airlineName": AIRLINES.get(carrier, carrier),
-                    "price": price.get("grandTotal", price.get("total", "0")),
-                    "currency": price.get("currency", "CAD"),
-                    "departure": seg.get("departure", {}).get("at", ""),
-                    "arrival": seg.get("arrival", {}).get("at", ""),
-                    "duration": itinerary.get("duration", ""),
-                    "flightNumber": f"{carrier}{seg.get('number', '')}",
-                }
-            )
+    for flight in raw_data.get("data", []):
+        route = flight.get("route", [])
+        if len(route) != 1:
+            continue  # skip non-direct (shouldn't happen with max_stopovers=0)
+
+        leg = route[0]
+        carrier = leg.get("airline", "")
+        flight_no = leg.get("flight_no", "")
+
+        local_departure = leg.get("local_departure", "")
+        local_arrival = leg.get("local_arrival", "")
+
+        flights.append(
+            {
+                "origin": origin,
+                "originName": AIRPORT_NAMES.get(origin, origin),
+                "airline": carrier,
+                "airlineName": carrier,  # Kiwi doesn't always provide full names
+                "price": str(flight.get("price", 0)),
+                "currency": flight.get("currency", "CAD"),
+                "departure": local_departure,
+                "arrival": local_arrival,
+                "duration": format_duration_seconds(flight.get("duration", {}).get("departure", 0)),
+                "flightNumber": f"{carrier}{flight_no}",
+            }
+        )
     return flights
+
+
+def format_duration_seconds(seconds: int) -> str:
+    if not seconds:
+        return ""
+    hours = seconds // 3600
+    minutes = (seconds % 3600) // 60
+    parts = []
+    if hours:
+        parts.append(f"PT{hours}H")
+    if minutes:
+        if hours:
+            return f"PT{hours}H{minutes}M"
+        return f"PT{minutes}M"
+    if hours:
+        return f"PT{hours}H"
+    return ""
 
 
 async def fetch_flights_for(
     client: httpx.AsyncClient,
-    token: str,
+    api_key: str,
     origin: str,
-    departure_date: str,
     semaphore: asyncio.Semaphore,
 ) -> list[dict]:
-    cache_key = (origin, departure_date)
-    cached = _flight_cache.get(cache_key)
+    cached = _flight_cache.get(origin)
     if cached and time.time() - cached[0] < CACHE_TTL:
         return cached[1]
 
     async with semaphore:
         try:
             resp = await client.get(
-                f"{AMADEUS_BASE}/v2/shopping/flight-offers",
+                f"{KIWI_BASE}/v2/search",
                 params={
-                    "originLocationCode": origin,
-                    "destinationLocationCode": "FLL",
-                    "departureDate": departure_date,
+                    "fly_from": origin,
+                    "fly_to": "FLL",
+                    "date_from": DATE_FROM,
+                    "date_to": DATE_TO,
                     "adults": 1,
-                    "nonStop": "true",
-                    "currencyCode": "CAD",
-                    "max": 50,
+                    "max_stopovers": 0,
+                    "curr": "CAD",
+                    "limit": 100,
+                    "one_for_city": 0,
+                    "flight_type": "oneway",
                 },
-                headers={"Authorization": f"Bearer {token}"},
+                headers={"apikey": api_key},
                 timeout=30.0,
             )
         except httpx.TimeoutException:
@@ -157,8 +144,8 @@ async def fetch_flights_for(
         if resp.status_code != 200:
             return []
 
-        flights = parse_flight_offers(origin, resp.json())
-        _flight_cache[cache_key] = (time.time(), flights)
+        flights = parse_kiwi_flights(origin, resp.json())
+        _flight_cache[origin] = (time.time(), flights)
         return flights
 
 
@@ -184,14 +171,14 @@ class FlightsResponse(BaseModel):
 
 @app.get("/api/flights", response_model=FlightsResponse)
 async def get_flights():
+    api_key = get_api_key()
+
     async with httpx.AsyncClient() as client:
-        token = await get_amadeus_token(client)
         semaphore = asyncio.Semaphore(5)
 
         tasks = [
-            fetch_flights_for(client, token, airport["code"], d, semaphore)
+            fetch_flights_for(client, api_key, airport["code"], semaphore)
             for airport in AIRPORTS
-            for d in DATES
         ]
 
         results = await asyncio.gather(*tasks)

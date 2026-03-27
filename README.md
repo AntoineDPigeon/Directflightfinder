@@ -22,9 +22,9 @@ Find direct flights to Fort Lauderdale (FLL) from airports within a 7-hour drive
 
 ## Setup
 
-### 1. Amadeus API credentials
+### 1. Kiwi Tequila API key
 
-Sign up for a free account at [developers.amadeus.com](https://developers.amadeus.com) and create an app to get your API key and secret.
+Sign up for a free account at [tequila.kiwi.com](https://tequila.kiwi.com) and create a solution to get your API key (free tier: 3000 searches/month).
 
 ```bash
 cp .env.example .env
@@ -52,5 +52,5 @@ Open http://localhost:5173 in your browser.
 
 ## Tech stack
 
-- **Backend**: Python FastAPI + httpx (async Amadeus API proxy)
+- **Backend**: Python FastAPI + httpx (async Kiwi Tequila API proxy)
 - **Frontend**: Vue 3 + TypeScript + Vite (pnpm)
