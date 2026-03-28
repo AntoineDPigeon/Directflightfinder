@@ -18,6 +18,7 @@ const returnLoading = ref(false)
 const returnDestination = ref('')
 const returnDestinationName = ref('')
 const returnDate = ref('')
+const selectedOutboundFlight = ref<Flight | null>(null)
 
 onMounted(async () => {
   await fetchFlights()
@@ -98,6 +99,7 @@ async function onSelectFlight(flight: Flight) {
   showReturnModal.value = true
   returnLoading.value = true
   returnFlights.value = []
+  selectedOutboundFlight.value = flight
   returnDestination.value = flight.origin
   returnDestinationName.value = flight.originName
 
@@ -157,6 +159,7 @@ async function onSelectFlight(flight: Flight) {
     <ReturnFlightsModal
       v-if="showReturnModal"
       :flights="returnFlights"
+      :outboundFlight="selectedOutboundFlight!"
       :destination="returnDestination"
       :destinationName="returnDestinationName"
       :date="returnDate"
