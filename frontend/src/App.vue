@@ -216,9 +216,14 @@ async function onSelectFlight(flight: Flight) {
   selectedOutboundFlight.value = flight
   returnDestination.value = flight.origin
   returnDestinationName.value = flight.originName
+  returnDate.value = '2026-11-22'
 
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 20000)
   try {
-    const resp = await fetch(`/api/return-flights?destination=${flight.origin}`)
+    const resp = await fetch(`/api/return-flights?destination=${flight.origin}`, {
+      signal: controller.signal,
+    })
     if (!resp.ok) throw new Error('Failed to fetch return flights')
     const data = await resp.json()
     returnFlights.value = data.flights
@@ -226,6 +231,7 @@ async function onSelectFlight(flight: Flight) {
   } catch {
     returnFlights.value = []
   } finally {
+    clearTimeout(timeout)
     returnLoading.value = false
   }
 }
