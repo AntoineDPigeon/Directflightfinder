@@ -419,6 +419,23 @@ async def get_flights_endpoint():
     )
 
 
+@app.get("/api/flights/airport")
+async def get_flights_for_airport(origin: str):
+    """Search flights for a single airport across all dates."""
+    valid_codes = {a["code"] for a in AIRPORTS}
+    if origin not in valid_codes:
+        raise HTTPException(status_code=400, detail=f"Unknown airport code: {origin}")
+
+    loop = asyncio.get_event_loop()
+    tasks = [
+        loop.run_in_executor(_executor, search_all_sources, origin, "FLL", d)
+        for d in DATES
+    ]
+    results = await asyncio.gather(*tasks)
+    flights = [f for batch in results for f in batch]
+    return {"flights": flights, "origin": origin}
+
+
 RETURN_DATE = "2026-11-22"
 
 
@@ -478,4 +495,4 @@ async def get_cheapest_returns():
 
 @app.get("/api/airports")
 async def get_airports():
-    return AIRPORTS
+    return {"airports": AIRPORTS, "dates": DATES}

@@ -1,5 +1,5 @@
 import { ref } from 'vue'
-import type { Flight, Airport, FlightsResponse, CheapestReturnsResponse, CheapestReturnFlight } from '@/types'
+import type { Flight, Airport, CheapestReturnsResponse, CheapestReturnFlight } from '@/types'
 
 const flights = ref<Flight[]>([])
 const airports = ref<Airport[]>([])
@@ -12,71 +12,56 @@ const cheapestReturns = ref<Record<string, CheapestReturnFlight | null>>({})
 const cheapestReturnsLoading = ref(false)
 
 export function useFlights() {
-  async function fetchFlightsClassic() {
-    try {
-      const resp = await fetch('/api/flights')
-      if (!resp.ok) {
-        const body = await resp.json().catch(() => ({}))
-        throw new Error(body.detail || `Request failed with status ${resp.status}`)
-      }
-      const data: FlightsResponse = await resp.json()
-      flights.value = data.flights
-      airports.value = data.airports
-      dates.value = data.dates
-    } catch (e) {
-      error.value = e instanceof Error ? e.message : 'Failed to fetch flights'
-    } finally {
-      loading.value = false
-    }
-  }
-
-  function fetchFlights(): Promise<void> {
+  async function fetchFlights() {
     loading.value = true
     error.value = null
     flights.value = []
     progress.value = 0
     progressTotal.value = 0
 
-    return new Promise((resolve) => {
-      let receivedAny = false
+    try {
+      // Get airports and dates
+      const metaResp = await fetch('/api/airports')
+      if (!metaResp.ok) throw new Error('Failed to fetch airport list')
+      const meta = await metaResp.json()
 
-      const evtSource = new EventSource('/api/flights/stream')
+      // Handle both formats: {airports, dates} or plain array
+      const airportList: Airport[] = Array.isArray(meta) ? meta : meta.airports
+      const dateList: string[] = Array.isArray(meta) ? [] : (meta.dates || [])
+      airports.value = airportList
+      dates.value = dateList
 
-      evtSource.onmessage = (event) => {
+      // Fetch flights per airport in parallel — results appear as each completes
+      progressTotal.value = airportList.length
+
+      const promises = airportList.map(async (airport) => {
         try {
-          const data = JSON.parse(event.data)
-          receivedAny = true
-
-          if (data.type === 'init') {
-            airports.value = data.airports
-            dates.value = data.dates
-          } else if (data.type === 'flights') {
-            flights.value = [...flights.value, ...data.flights]
-            progress.value = data.progress
-            progressTotal.value = data.total
-          } else if (data.type === 'done') {
-            evtSource.close()
-            loading.value = false
-            resolve()
-          }
+          const resp = await fetch(`/api/flights/airport?origin=${airport.code}`)
+          if (!resp.ok) return
+          const data = await resp.json()
+          flights.value = [...flights.value, ...data.flights]
         } catch {
-          // ignore parse errors
+          // skip failed airport
+        } finally {
+          progress.value++
         }
-      }
+      })
 
-      evtSource.onerror = () => {
-        evtSource.close()
-        if (!receivedAny) {
-          // SSE not supported or failed to connect — fall back to classic fetch
-          console.log('SSE failed, falling back to /api/flights')
-          fetchFlightsClassic().then(resolve)
-        } else {
-          // Stream was interrupted mid-way
-          loading.value = false
-          resolve()
+      await Promise.all(promises)
+
+      // Infer dates from flights if not provided by API
+      if (dates.value.length === 0 && flights.value.length > 0) {
+        const dateSet = new Set<string>()
+        for (const f of flights.value) {
+          dateSet.add(f.departure.slice(0, 10))
         }
+        dates.value = [...dateSet].sort()
       }
-    })
+    } catch (e) {
+      error.value = e instanceof Error ? e.message : 'Failed to fetch flights'
+    } finally {
+      loading.value = false
+    }
   }
 
   async function fetchCheapestReturns() {
