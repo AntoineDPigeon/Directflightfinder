@@ -3,13 +3,21 @@ import { ref, computed, onMounted } from 'vue'
 import { useFlights } from '@/composables/useFlights'
 import FlightFilters from '@/components/FlightFilters.vue'
 import FlightTable from '@/components/FlightTable.vue'
-import type { SortField, Flight } from '@/types'
+import ReturnFlightsModal from '@/components/ReturnFlightsModal.vue'
+import type { SortField, Flight, ReturnFlight } from '@/types'
 
 const { flights, airports, dates, loading, error, fetchFlights } = useFlights()
 
 const selectedAirports = ref<Set<string>>(new Set())
 const selectedDates = ref<Set<string>>(new Set())
 const sortField = ref<SortField>('price')
+
+const showReturnModal = ref(false)
+const returnFlights = ref<ReturnFlight[]>([])
+const returnLoading = ref(false)
+const returnDestination = ref('')
+const returnDestinationName = ref('')
+const returnDate = ref('')
 
 onMounted(async () => {
   await fetchFlights()
@@ -85,6 +93,26 @@ const cheapestByAirport = computed(() => {
 })
 
 const resultCount = computed(() => filteredFlights.value.length)
+
+async function onSelectFlight(flight: Flight) {
+  showReturnModal.value = true
+  returnLoading.value = true
+  returnFlights.value = []
+  returnDestination.value = flight.origin
+  returnDestinationName.value = flight.originName
+
+  try {
+    const resp = await fetch(`/api/return-flights?destination=${flight.origin}`)
+    if (!resp.ok) throw new Error('Failed to fetch return flights')
+    const data = await resp.json()
+    returnFlights.value = data.flights
+    returnDate.value = data.date
+  } catch {
+    returnFlights.value = []
+  } finally {
+    returnLoading.value = false
+  }
+}
 </script>
 
 <template>
@@ -92,7 +120,7 @@ const resultCount = computed(() => filteredFlights.value.length)
     <header class="mb-6 text-center">
       <h1 class="mb-1 text-[1.75rem] font-bold text-[#1a3a5c]">Direct Flights to Fort Lauderdale (FLL)</h1>
       <p class="text-[0.95rem] text-[#666]">
-        From airports within 7 hours of Montreal &middot; Nov 11&ndash;15, 2026 &middot; Prices in CAD
+        From airports within 7 hours of Montreal &middot; Nov 11&ndash;14, 2026 &middot; Prices in CAD
       </p>
     </header>
 
@@ -122,8 +150,19 @@ const resultCount = computed(() => filteredFlights.value.length)
 
     <template v-else>
       <p class="mt-4 mb-2 text-sm text-[#555]">{{ resultCount }} flight{{ resultCount !== 1 ? 's' : '' }} found</p>
-      <FlightTable :flights="filteredFlights" :cheapestByAirport="cheapestByAirport" />
+      <p class="mt-1 mb-4 text-xs text-[#888]">Click a flight to see return options from FLL on Nov 22</p>
+      <FlightTable :flights="filteredFlights" :cheapestByAirport="cheapestByAirport" @select-flight="onSelectFlight" />
     </template>
+
+    <ReturnFlightsModal
+      v-if="showReturnModal"
+      :flights="returnFlights"
+      :destination="returnDestination"
+      :destinationName="returnDestinationName"
+      :date="returnDate"
+      :loading="returnLoading"
+      @close="showReturnModal = false"
+    />
 
     <footer class="mt-8 text-center text-xs text-[#999]">
       <p>

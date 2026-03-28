@@ -6,9 +6,13 @@ defineProps<{
   cheapestByAirport: Record<string, number>
 }>()
 
-function formatPrice(price: string): string {
+const emit = defineEmits<{
+  selectFlight: [flight: Flight]
+}>()
+
+function formatPrice(price: string, currency: string = 'CAD'): string {
   const num = parseFloat(price)
-  return new Intl.NumberFormat('en-CA', { style: 'currency', currency: 'CAD' }).format(num)
+  return new Intl.NumberFormat('en-CA', { style: 'currency', currency }).format(num)
 }
 
 function formatDate(isoStr: string): string {
@@ -49,15 +53,16 @@ function isCheapest(flight: Flight, cheapestByAirport: Record<string, number>): 
           <th class="px-2.5 py-3 text-left text-xs font-semibold uppercase tracking-wide">Departure</th>
           <th class="px-2.5 py-3 text-left text-xs font-semibold uppercase tracking-wide">Arrival</th>
           <th class="px-2.5 py-3 text-left text-xs font-semibold uppercase tracking-wide">Duration</th>
-          <th class="px-2.5 py-3 text-right text-xs font-bold uppercase tracking-wide whitespace-nowrap">Price (CAD)</th>
+          <th class="px-2.5 py-3 text-right text-xs font-bold uppercase tracking-wide whitespace-nowrap">Price</th>
         </tr>
       </thead>
       <tbody>
         <tr
           v-for="(flight, i) in flights"
           :key="i"
-          class="border-b border-[#e8e8e8] even:bg-[#f9fafb] hover:bg-[#eef3f8]"
+          class="cursor-pointer border-b border-[#e8e8e8] even:bg-[#f9fafb] hover:bg-[#eef3f8]"
           :class="{ '!bg-[#e8f5e9] font-medium': isCheapest(flight, cheapestByAirport) }"
+          @click="emit('selectFlight', flight)"
         >
           <td class="px-2.5 py-2.5">
             <strong>{{ flight.origin }}</strong>
@@ -69,7 +74,7 @@ function isCheapest(flight: Flight, cheapestByAirport: Record<string, number>): 
           <td class="px-2.5 py-2.5">{{ formatTime(flight.departure) }}</td>
           <td class="px-2.5 py-2.5">{{ formatTime(flight.arrival) }}</td>
           <td class="px-2.5 py-2.5">{{ formatDuration(flight.duration) }}</td>
-          <td class="px-2.5 py-2.5 text-right font-bold whitespace-nowrap">{{ formatPrice(flight.price) }}</td>
+          <td class="px-2.5 py-2.5 text-right font-bold whitespace-nowrap">{{ formatPrice(flight.price, flight.currency) }}</td>
         </tr>
       </tbody>
     </table>

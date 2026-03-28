@@ -9,6 +9,29 @@ export interface Flight {
   arrival: string
   duration: string
   flightNumber: string
+  source?: string
+}
+
+export interface ReturnFlight {
+  origin: string
+  originName: string
+  destination: string
+  destinationName: string
+  airline: string
+  airlineName: string
+  price: string
+  currency: string
+  departure: string
+  arrival: string
+  duration: string
+  flightNumber: string
+  source?: string
+}
+
+export interface ReturnFlightsResponse {
+  flights: ReturnFlight[]
+  date: string
+  destination: string
 }
 
 export interface Airport {
