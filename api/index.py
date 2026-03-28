@@ -1,4 +1,5 @@
 import asyncio
+import json
 import os
 import re
 import time
@@ -8,6 +9,7 @@ from datetime import date, datetime
 import requests
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 from fast_flights import FlightData, Passengers, create_filter
@@ -376,6 +378,52 @@ async def get_flights_endpoint():
         airports=AIRPORTS,
         dates=DATES,
         searchedAt=date.today().isoformat(),
+    )
+
+
+@app.get("/api/flights/stream")
+async def stream_flights():
+    """Stream flight results as Server-Sent Events as each search completes."""
+    loop = asyncio.get_event_loop()
+
+    async def event_generator():
+        # Send airports and dates first
+        yield f"data: {json.dumps({'type': 'init', 'airports': AIRPORTS, 'dates': DATES})}\n\n"
+
+        # Create a task per airport+date combo
+        pending: dict[asyncio.Task, tuple[str, str]] = {}
+        for airport in AIRPORTS:
+            for d in DATES:
+                task = asyncio.create_task(
+                    loop.run_in_executor(
+                        _executor, search_all_sources, airport["code"], "FLL", d
+                    )
+                )
+                pending[task] = (airport["code"], d)
+
+        total = len(pending)
+        done_count = 0
+
+        while pending:
+            done, _ = await asyncio.wait(
+                pending.keys(), return_when=asyncio.FIRST_COMPLETED
+            )
+            for task in done:
+                origin, d = pending.pop(task)
+                done_count += 1
+                try:
+                    flights = task.result()
+                except Exception:
+                    flights = []
+
+                yield f"data: {json.dumps({'type': 'flights', 'flights': flights, 'progress': done_count, 'total': total})}\n\n"
+
+        yield f"data: {json.dumps({'type': 'done', 'searchedAt': date.today().isoformat()})}\n\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
 
 

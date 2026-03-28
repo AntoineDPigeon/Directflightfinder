@@ -7,8 +7,8 @@ import ReturnFlightsModal from '@/components/ReturnFlightsModal.vue'
 import FavoriteCombos from '@/components/FavoriteCombos.vue'
 import type { SortField, Flight, ReturnFlight, FavoriteCombo } from '@/types'
 
-const { flights, airports, dates, loading, error, fetchFlights,
-        cheapestReturns, cheapestReturnsLoading, fetchCheapestReturns } = useFlights()
+const { flights, airports, dates, loading, error, progress, progressTotal,
+        fetchFlights, cheapestReturns, cheapestReturnsLoading, fetchCheapestReturns } = useFlights()
 
 const darkMode = ref(localStorage.getItem('darkMode') === 'true')
 
@@ -114,13 +114,23 @@ const returnDestinationName = ref('')
 const returnDate = ref('')
 const selectedOutboundFlight = ref<Flight | null>(null)
 
-onMounted(async () => {
-  const flightsPromise = fetchFlights()
+// Initialize filters when airports arrive via SSE
+watch(airports, (val) => {
+  if (val.length > 0 && selectedAirports.value.size === 0) {
+    selectedAirports.value = new Set(val.map((a) => a.code))
+  }
+})
+watch(dates, (val) => {
+  if (val.length > 0 && selectedDates.value.size === 0) {
+    selectedDates.value = new Set(val)
+  }
+})
+
+onMounted(() => {
+  fetchFlights().then(() => {
+    if (favorites.value.length > 0) refreshFavPrices()
+  })
   fetchCheapestReturns()
-  await flightsPromise
-  selectedAirports.value = new Set(airports.value.map((a) => a.code))
-  selectedDates.value = new Set(dates.value)
-  if (favorites.value.length > 0) refreshFavPrices()
 })
 
 function toggleAirport(code: string) {
@@ -257,19 +267,31 @@ async function onSelectFlight(flight: Flight) {
       @clear-all-dates="clearAllDates"
     />
 
-    <div v-if="loading" class="flex flex-col items-center gap-4 px-4 py-12 text-center text-lg text-[#555] dark:text-slate-400">
-      <div class="size-10 animate-spin rounded-full border-4 border-[#e0e0e0] border-t-[#1a3a5c] dark:border-slate-600 dark:border-t-blue-400"></div>
-      Searching for direct flights...
-    </div>
-
-    <div v-else-if="error" class="rounded-lg bg-[#fce4ec] px-4 py-12 text-center text-lg text-[#c62828] dark:bg-red-900/30 dark:text-red-400">
+    <div v-if="error && !loading && filteredFlights.length === 0" class="rounded-lg bg-[#fce4ec] px-4 py-12 text-center text-lg text-[#c62828] dark:bg-red-900/30 dark:text-red-400">
       {{ error }}
     </div>
 
     <template v-else>
-      <p class="mt-4 mb-2 text-sm text-[#555] dark:text-slate-400">{{ resultCount }} flight{{ resultCount !== 1 ? 's' : '' }} found</p>
+      <div v-if="loading" class="mt-4 mb-3">
+        <div class="flex items-center gap-3 text-sm text-[#555] dark:text-slate-400">
+          <div class="size-4 animate-spin rounded-full border-2 border-[#e0e0e0] border-t-[#1a3a5c] dark:border-slate-600 dark:border-t-blue-400"></div>
+          <span>Searching... {{ progress }}/{{ progressTotal }} routes</span>
+        </div>
+        <div class="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-slate-700">
+          <div
+            class="h-full rounded-full bg-[#1a3a5c] transition-all duration-300 dark:bg-blue-500"
+            :style="{ width: progressTotal ? `${(progress / progressTotal) * 100}%` : '0%' }"
+          ></div>
+        </div>
+      </div>
+      <p v-if="!loading || filteredFlights.length > 0" class="mt-4 mb-2 text-sm text-[#555] dark:text-slate-400">
+        {{ resultCount }} flight{{ resultCount !== 1 ? 's' : '' }} found{{ loading ? ' so far' : '' }}
+      </p>
       <p class="mt-1 mb-4 text-xs text-[#888] dark:text-slate-500">Click a flight to see return options from FLL on Nov 22</p>
-      <FlightTable :flights="filteredFlights" :cheapestByAirport="cheapestByAirport" :cheapestReturns="cheapestReturns" :cheapestReturnsLoading="cheapestReturnsLoading" @select-flight="onSelectFlight" />
+      <FlightTable v-if="filteredFlights.length > 0" :flights="filteredFlights" :cheapestByAirport="cheapestByAirport" :cheapestReturns="cheapestReturns" :cheapestReturnsLoading="cheapestReturnsLoading" @select-flight="onSelectFlight" />
+      <div v-else-if="loading" class="py-8 text-center text-[#888] dark:text-slate-500">
+        Flights will appear here as they are found...
+      </div>
     </template>
 
     <ReturnFlightsModal

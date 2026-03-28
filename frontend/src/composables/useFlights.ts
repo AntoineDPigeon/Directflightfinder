@@ -1,34 +1,57 @@
 import { ref } from 'vue'
-import type { Flight, Airport, FlightsResponse, CheapestReturnsResponse, CheapestReturnFlight } from '@/types'
+import type { Flight, Airport, CheapestReturnsResponse, CheapestReturnFlight } from '@/types'
 
 const flights = ref<Flight[]>([])
 const airports = ref<Airport[]>([])
 const dates = ref<string[]>([])
 const loading = ref(false)
 const error = ref<string | null>(null)
+const progress = ref(0)
+const progressTotal = ref(0)
 const cheapestReturns = ref<Record<string, CheapestReturnFlight | null>>({})
 const cheapestReturnsLoading = ref(false)
 
 export function useFlights() {
-  async function fetchFlights() {
+  function fetchFlights(): Promise<void> {
     loading.value = true
     error.value = null
+    flights.value = []
+    progress.value = 0
+    progressTotal.value = 0
 
-    try {
-      const resp = await fetch('/api/flights')
-      if (!resp.ok) {
-        const body = await resp.json().catch(() => ({}))
-        throw new Error(body.detail || `Request failed with status ${resp.status}`)
+    return new Promise((resolve) => {
+      const evtSource = new EventSource('/api/flights/stream')
+
+      evtSource.onmessage = (event) => {
+        try {
+          const data = JSON.parse(event.data)
+
+          if (data.type === 'init') {
+            airports.value = data.airports
+            dates.value = data.dates
+          } else if (data.type === 'flights') {
+            flights.value = [...flights.value, ...data.flights]
+            progress.value = data.progress
+            progressTotal.value = data.total
+          } else if (data.type === 'done') {
+            evtSource.close()
+            loading.value = false
+            resolve()
+          }
+        } catch {
+          // ignore parse errors
+        }
       }
-      const data: FlightsResponse = await resp.json()
-      flights.value = data.flights
-      airports.value = data.airports
-      dates.value = data.dates
-    } catch (e) {
-      error.value = e instanceof Error ? e.message : 'Failed to fetch flights'
-    } finally {
-      loading.value = false
-    }
+
+      evtSource.onerror = () => {
+        evtSource.close()
+        if (flights.value.length === 0) {
+          error.value = 'Failed to fetch flights'
+        }
+        loading.value = false
+        resolve()
+      }
+    })
   }
 
   async function fetchCheapestReturns() {
@@ -39,12 +62,12 @@ export function useFlights() {
       const data: CheapestReturnsResponse = await resp.json()
       cheapestReturns.value = data.cheapestReturns
     } catch {
-      // silently fail -- round trip column just won't show prices
+      // silently fail
     } finally {
       cheapestReturnsLoading.value = false
     }
   }
 
-  return { flights, airports, dates, loading, error, fetchFlights,
-           cheapestReturns, cheapestReturnsLoading, fetchCheapestReturns }
+  return { flights, airports, dates, loading, error, progress, progressTotal,
+           fetchFlights, cheapestReturns, cheapestReturnsLoading, fetchCheapestReturns }
 }
