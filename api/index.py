@@ -428,11 +428,14 @@ async def get_flights_for_airport(origin: str):
 
     loop = asyncio.get_event_loop()
     tasks = [
-        loop.run_in_executor(_executor, search_all_sources, origin, "FLL", d)
+        asyncio.wait_for(
+            loop.run_in_executor(_executor, search_all_sources, origin, "FLL", d),
+            timeout=20,
+        )
         for d in DATES
     ]
-    results = await asyncio.gather(*tasks)
-    flights = [f for batch in results for f in batch]
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+    flights = [f for r in results if isinstance(r, list) for f in r]
     return {"flights": flights, "origin": origin}
 
 

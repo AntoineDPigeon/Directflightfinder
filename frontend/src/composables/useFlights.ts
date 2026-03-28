@@ -35,14 +35,19 @@ export function useFlights() {
       progressTotal.value = airportList.length
 
       const promises = airportList.map(async (airport) => {
+        const controller = new AbortController()
+        const timeout = setTimeout(() => controller.abort(), 20000)
         try {
-          const resp = await fetch(`/api/flights/airport?origin=${airport.code}`)
+          const resp = await fetch(`/api/flights/airport?origin=${airport.code}`, {
+            signal: controller.signal,
+          })
           if (!resp.ok) return
           const data = await resp.json()
           flights.value = [...flights.value, ...data.flights]
         } catch {
-          // skip failed airport
+          // skip failed or timed-out airport
         } finally {
+          clearTimeout(timeout)
           progress.value++
         }
       })
@@ -66,14 +71,17 @@ export function useFlights() {
 
   async function fetchCheapestReturns() {
     cheapestReturnsLoading.value = true
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 60000)
     try {
-      const resp = await fetch('/api/cheapest-returns')
+      const resp = await fetch('/api/cheapest-returns', { signal: controller.signal })
       if (!resp.ok) return
       const data: CheapestReturnsResponse = await resp.json()
       cheapestReturns.value = data.cheapestReturns
     } catch {
       // silently fail
     } finally {
+      clearTimeout(timeout)
       cheapestReturnsLoading.value = false
     }
   }
