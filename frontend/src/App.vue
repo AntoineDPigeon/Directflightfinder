@@ -167,8 +167,8 @@ function sortFlights(a: Flight, b: Flight): number {
     case 'roundTrip': {
       const aRet = cheapestReturns.value[a.origin]
       const bRet = cheapestReturns.value[b.origin]
-      const aTotal = aRet ? parseFloat(a.price) + parseFloat(aRet) : Infinity
-      const bTotal = bRet ? parseFloat(b.price) + parseFloat(bRet) : Infinity
+      const aTotal = aRet ? parseFloat(a.price) + parseFloat(aRet.price) : Infinity
+      const bTotal = bRet ? parseFloat(b.price) + parseFloat(bRet.price) : Infinity
       return aTotal - bTotal
     }
     default:

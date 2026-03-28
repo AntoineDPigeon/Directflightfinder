@@ -415,19 +415,23 @@ async def get_cheapest_returns():
     ]
     results = await asyncio.gather(*tasks)
 
-    cheapest: dict[str, str | None] = {}
+    cheapest: dict[str, dict | None] = {}
     for airport, flights in zip(AIRPORTS, results):
         code = airport["code"]
         if not flights:
             cheapest[code] = None
             continue
-        prices = []
+        best = None
+        best_price = float("inf")
         for f in flights:
             try:
-                prices.append(float(f["price"]))
+                p = float(f["price"])
             except (ValueError, TypeError):
-                pass
-        cheapest[code] = str(min(prices)) if prices else None
+                continue
+            if p < best_price:
+                best_price = p
+                best = f
+        cheapest[code] = best
 
     return {"cheapestReturns": cheapest, "returnDate": RETURN_DATE}
 

@@ -74,8 +74,18 @@ export interface FavoriteCombo {
   savedAt: string
 }
 
+export interface CheapestReturnFlight {
+  airline: string
+  airlineName: string
+  price: string
+  departure: string
+  arrival: string
+  duration: string
+  buyLink?: string
+}
+
 export interface CheapestReturnsResponse {
-  cheapestReturns: Record<string, string | null>
+  cheapestReturns: Record<string, CheapestReturnFlight | null>
   returnDate: string
 }
 

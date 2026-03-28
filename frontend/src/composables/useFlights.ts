@@ -1,12 +1,12 @@
 import { ref } from 'vue'
-import type { Flight, Airport, FlightsResponse, CheapestReturnsResponse } from '@/types'
+import type { Flight, Airport, FlightsResponse, CheapestReturnsResponse, CheapestReturnFlight } from '@/types'
 
 const flights = ref<Flight[]>([])
 const airports = ref<Airport[]>([])
 const dates = ref<string[]>([])
 const loading = ref(false)
 const error = ref<string | null>(null)
-const cheapestReturns = ref<Record<string, string | null>>({})
+const cheapestReturns = ref<Record<string, CheapestReturnFlight | null>>({})
 const cheapestReturnsLoading = ref(false)
 
 export function useFlights() {
