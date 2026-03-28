@@ -9,6 +9,7 @@ export interface Flight {
   arrival: string
   duration: string
   flightNumber: string
+  buyLink?: string
   source?: string
 }
 
@@ -25,6 +26,7 @@ export interface ReturnFlight {
   arrival: string
   duration: string
   flightNumber: string
+  buyLink?: string
   source?: string
 }
 

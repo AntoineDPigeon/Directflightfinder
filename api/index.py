@@ -154,6 +154,7 @@ def search_fast_flights(origin: str, destination: str, departure_date: str) -> l
                     "arrival": arrival_iso,
                     "duration": f.duration,
                     "flightNumber": f.name,
+                    "buyLink": f"https://www.google.com/travel/flights?q=Flights%20to%20{destination}%20from%20{origin}%20on%20{departure_date}%20oneway",
                     "source": "google-flights",
                 }
             )
@@ -242,6 +243,7 @@ def search_rapidapi(origin: str, destination: str, departure_date: str) -> list[
                     "arrival": arrival_iso,
                     "duration": duration_iso,
                     "flightNumber": airline_name,
+                    "buyLink": f.get("buy_link", ""),
                     "source": "rapidapi",
                 }
             )

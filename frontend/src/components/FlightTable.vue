@@ -54,6 +54,7 @@ function isCheapest(flight: Flight, cheapestByAirport: Record<string, number>): 
           <th class="px-2.5 py-3 text-left text-xs font-semibold uppercase tracking-wide">Arrival</th>
           <th class="px-2.5 py-3 text-left text-xs font-semibold uppercase tracking-wide">Duration</th>
           <th class="px-2.5 py-3 text-right text-xs font-bold uppercase tracking-wide whitespace-nowrap">Price</th>
+          <th class="px-2.5 py-3 text-center text-xs font-semibold uppercase tracking-wide"></th>
         </tr>
       </thead>
       <tbody>
@@ -74,7 +75,20 @@ function isCheapest(flight: Flight, cheapestByAirport: Record<string, number>): 
           <td class="px-2.5 py-2.5">{{ formatTime(flight.departure) }}</td>
           <td class="px-2.5 py-2.5">{{ formatTime(flight.arrival) }}</td>
           <td class="px-2.5 py-2.5">{{ formatDuration(flight.duration) }}</td>
-          <td class="px-2.5 py-2.5 text-right font-bold whitespace-nowrap">{{ formatPrice(flight.price, flight.currency) }}</td>
+          <td class="px-2.5 py-2.5 text-right font-bold whitespace-nowrap">
+            {{ formatPrice(flight.price, flight.currency) }}
+            <span class="ml-1 text-xs font-normal text-[#999]">{{ flight.currency }}</span>
+          </td>
+          <td class="px-2.5 py-2.5 text-center">
+            <a
+              v-if="flight.buyLink"
+              :href="flight.buyLink"
+              target="_blank"
+              rel="noopener"
+              class="inline-block rounded bg-[#0066cc] px-3 py-1 text-xs font-semibold text-white no-underline hover:bg-[#004499]"
+              @click.stop
+            >Book</a>
+          </td>
         </tr>
       </tbody>
     </table>
