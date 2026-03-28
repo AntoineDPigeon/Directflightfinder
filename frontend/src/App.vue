@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useFlights } from '@/composables/useFlights'
 import FlightFilters from '@/components/FlightFilters.vue'
 import FlightTable from '@/components/FlightTable.vue'
@@ -7,6 +7,13 @@ import ReturnFlightsModal from '@/components/ReturnFlightsModal.vue'
 import type { SortField, Flight, ReturnFlight } from '@/types'
 
 const { flights, airports, dates, loading, error, fetchFlights } = useFlights()
+
+const darkMode = ref(localStorage.getItem('darkMode') === 'true')
+
+watch(darkMode, (val) => {
+  document.documentElement.classList.toggle('dark', val)
+  localStorage.setItem('darkMode', String(val))
+}, { immediate: true })
 
 const selectedAirports = ref<Set<string>>(new Set())
 const selectedDates = ref<Set<string>>(new Set())
@@ -119,9 +126,15 @@ async function onSelectFlight(flight: Flight) {
 
 <template>
   <div class="mx-auto max-w-[1200px] px-4 py-6">
-    <header class="mb-6 text-center">
-      <h1 class="mb-1 text-[1.75rem] font-bold text-[#1a3a5c]">Direct Flights to Fort Lauderdale (FLL)</h1>
-      <p class="text-[0.95rem] text-[#666]">
+    <header class="relative mb-6 text-center">
+      <button
+        @click="darkMode = !darkMode"
+        class="absolute right-0 top-0 cursor-pointer rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
+      >
+        {{ darkMode ? 'Light' : 'Dark' }}
+      </button>
+      <h1 class="mb-1 text-[1.75rem] font-bold text-[#1a3a5c] dark:text-blue-300">Direct Flights to Fort Lauderdale (FLL)</h1>
+      <p class="text-[0.95rem] text-[#666] dark:text-slate-400">
         From airports within 7 hours of Montreal &middot; Nov 11&ndash;14, 2026 &middot; Prices in CAD
       </p>
     </header>
@@ -141,18 +154,18 @@ async function onSelectFlight(flight: Flight) {
       @clear-all-dates="clearAllDates"
     />
 
-    <div v-if="loading" class="flex flex-col items-center gap-4 px-4 py-12 text-center text-lg text-[#555]">
-      <div class="size-10 animate-spin rounded-full border-4 border-[#e0e0e0] border-t-[#1a3a5c]"></div>
+    <div v-if="loading" class="flex flex-col items-center gap-4 px-4 py-12 text-center text-lg text-[#555] dark:text-slate-400">
+      <div class="size-10 animate-spin rounded-full border-4 border-[#e0e0e0] border-t-[#1a3a5c] dark:border-slate-600 dark:border-t-blue-400"></div>
       Searching for direct flights...
     </div>
 
-    <div v-else-if="error" class="rounded-lg bg-[#fce4ec] px-4 py-12 text-center text-lg text-[#c62828]">
+    <div v-else-if="error" class="rounded-lg bg-[#fce4ec] px-4 py-12 text-center text-lg text-[#c62828] dark:bg-red-900/30 dark:text-red-400">
       {{ error }}
     </div>
 
     <template v-else>
-      <p class="mt-4 mb-2 text-sm text-[#555]">{{ resultCount }} flight{{ resultCount !== 1 ? 's' : '' }} found</p>
-      <p class="mt-1 mb-4 text-xs text-[#888]">Click a flight to see return options from FLL on Nov 22</p>
+      <p class="mt-4 mb-2 text-sm text-[#555] dark:text-slate-400">{{ resultCount }} flight{{ resultCount !== 1 ? 's' : '' }} found</p>
+      <p class="mt-1 mb-4 text-xs text-[#888] dark:text-slate-500">Click a flight to see return options from FLL on Nov 22</p>
       <FlightTable :flights="filteredFlights" :cheapestByAirport="cheapestByAirport" @select-flight="onSelectFlight" />
     </template>
 
@@ -167,7 +180,7 @@ async function onSelectFlight(flight: Flight) {
       @close="showReturnModal = false"
     />
 
-    <footer class="mt-8 text-center text-xs text-[#999]">
+    <footer class="mt-8 text-center text-xs text-[#999] dark:text-slate-500">
       <p>
         Flight data from Amadeus API (test environment &mdash; prices may be synthetic).
         Cheapest flights per airport highlighted in green.

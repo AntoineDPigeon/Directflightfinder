@@ -34,13 +34,13 @@ const sortOptions: { value: SortField; label: string }[] = [
 </script>
 
 <template>
-  <div class="flex flex-col gap-5 rounded-lg border border-[#e0e0e0] bg-[#f8f9fa] p-5">
+  <div class="flex flex-col gap-5 rounded-lg border border-[#e0e0e0] bg-[#f8f9fa] p-5 dark:border-slate-700 dark:bg-slate-800">
     <div>
       <div class="flex items-center gap-3">
-        <h3 class="mb-2 text-sm uppercase tracking-wide text-[#555]">Departure Airports</h3>
+        <h3 class="mb-2 text-sm uppercase tracking-wide text-[#555] dark:text-slate-400">Departure Airports</h3>
         <span class="flex gap-2">
-          <button @click="emit('selectAllAirports')" class="cursor-pointer border-none bg-transparent p-0 text-xs text-[#0066cc] underline hover:text-[#004499]">All</button>
-          <button @click="emit('clearAllAirports')" class="cursor-pointer border-none bg-transparent p-0 text-xs text-[#0066cc] underline hover:text-[#004499]">None</button>
+          <button @click="emit('selectAllAirports')" class="cursor-pointer border-none bg-transparent p-0 text-xs text-[#0066cc] underline hover:text-[#004499] dark:text-blue-400 dark:hover:text-blue-300">All</button>
+          <button @click="emit('clearAllAirports')" class="cursor-pointer border-none bg-transparent p-0 text-xs text-[#0066cc] underline hover:text-[#004499] dark:text-blue-400 dark:hover:text-blue-300">None</button>
         </span>
       </div>
       <div class="grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-1">
@@ -56,7 +56,7 @@ const sortOptions: { value: SortField; label: string }[] = [
           />
           <span class="flex items-baseline gap-1">
             <strong>{{ airport.code }}</strong>
-            <span class="text-xs text-[#666]">{{ airport.name }} ({{ airport.drive }})</span>
+            <span class="text-xs text-[#666] dark:text-slate-400">{{ airport.name }} ({{ airport.drive }})</span>
           </span>
         </label>
       </div>
@@ -64,10 +64,10 @@ const sortOptions: { value: SortField; label: string }[] = [
 
     <div>
       <div class="flex items-center gap-3">
-        <h3 class="mb-2 text-sm uppercase tracking-wide text-[#555]">Dates</h3>
+        <h3 class="mb-2 text-sm uppercase tracking-wide text-[#555] dark:text-slate-400">Dates</h3>
         <span class="flex gap-2">
-          <button @click="emit('selectAllDates')" class="cursor-pointer border-none bg-transparent p-0 text-xs text-[#0066cc] underline hover:text-[#004499]">All</button>
-          <button @click="emit('clearAllDates')" class="cursor-pointer border-none bg-transparent p-0 text-xs text-[#0066cc] underline hover:text-[#004499]">None</button>
+          <button @click="emit('selectAllDates')" class="cursor-pointer border-none bg-transparent p-0 text-xs text-[#0066cc] underline hover:text-[#004499] dark:text-blue-400 dark:hover:text-blue-300">All</button>
+          <button @click="emit('clearAllDates')" class="cursor-pointer border-none bg-transparent p-0 text-xs text-[#0066cc] underline hover:text-[#004499] dark:text-blue-400 dark:hover:text-blue-300">None</button>
         </span>
       </div>
       <div class="flex flex-wrap gap-3">
@@ -87,11 +87,11 @@ const sortOptions: { value: SortField; label: string }[] = [
     </div>
 
     <div class="flex items-center gap-3">
-      <h3 class="text-sm uppercase tracking-wide text-[#555]">Sort by</h3>
+      <h3 class="text-sm uppercase tracking-wide text-[#555] dark:text-slate-400">Sort by</h3>
       <select
         :value="sortField"
         @change="emit('updateSort', ($event.target as HTMLSelectElement).value as SortField)"
-        class="rounded border border-[#ccc] px-2.5 py-1.5 text-sm"
+        class="rounded border border-[#ccc] bg-white px-2.5 py-1.5 text-sm dark:border-slate-600 dark:bg-slate-700 dark:text-slate-200"
       >
         <option v-for="opt in sortOptions" :key="opt.value" :value="opt.value">
           {{ opt.label }}

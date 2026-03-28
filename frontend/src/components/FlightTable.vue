@@ -44,7 +44,7 @@ function isCheapest(flight: Flight, cheapestByAirport: Record<string, number>): 
 <template>
   <div class="overflow-x-auto">
     <table class="w-full border-collapse text-sm">
-      <thead class="bg-[#1a3a5c] text-white">
+      <thead class="bg-[#1a3a5c] text-white dark:bg-slate-900">
         <tr>
           <th class="px-2.5 py-3 text-left text-xs font-semibold uppercase tracking-wide">Origin</th>
           <th class="px-2.5 py-3 text-left text-xs font-semibold uppercase tracking-wide">Date</th>
@@ -61,13 +61,13 @@ function isCheapest(flight: Flight, cheapestByAirport: Record<string, number>): 
         <tr
           v-for="(flight, i) in flights"
           :key="i"
-          class="cursor-pointer border-b border-[#e8e8e8] even:bg-[#f9fafb] hover:bg-[#eef3f8]"
-          :class="{ '!bg-[#e8f5e9] font-medium': isCheapest(flight, cheapestByAirport) }"
+          class="cursor-pointer border-b border-[#e8e8e8] even:bg-[#f9fafb] hover:bg-[#eef3f8] dark:border-slate-700 dark:even:bg-slate-800 dark:hover:bg-slate-700"
+          :class="{ '!bg-[#e8f5e9] dark:!bg-green-900/40 font-medium': isCheapest(flight, cheapestByAirport) }"
           @click="emit('selectFlight', flight)"
         >
           <td class="px-2.5 py-2.5">
             <strong>{{ flight.origin }}</strong>
-            <span class="block text-xs text-[#777]">{{ flight.originName }}</span>
+            <span class="block text-xs text-[#777] dark:text-slate-400">{{ flight.originName }}</span>
           </td>
           <td class="px-2.5 py-2.5">{{ formatDate(flight.departure) }}</td>
           <td class="px-2.5 py-2.5">{{ flight.airlineName }}</td>
@@ -82,14 +82,14 @@ function isCheapest(flight: Flight, cheapestByAirport: Record<string, number>): 
               :href="flight.buyLink"
               target="_blank"
               rel="noopener"
-              class="inline-block rounded bg-[#0066cc] px-3 py-1 text-xs font-semibold text-white no-underline hover:bg-[#004499]"
+              class="inline-block rounded bg-[#0066cc] px-3 py-1 text-xs font-semibold text-white no-underline hover:bg-[#004499] dark:bg-blue-600 dark:hover:bg-blue-500"
               @click.stop
             >Book</a>
           </td>
         </tr>
       </tbody>
     </table>
-    <p v-if="flights.length === 0" class="p-8 text-center text-[#888]">
+    <p v-if="flights.length === 0" class="p-8 text-center text-[#888] dark:text-slate-500">
       No direct flights found matching your filters.
     </p>
   </div>

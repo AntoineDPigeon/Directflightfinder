@@ -66,8 +66,8 @@ function buildRoundTripLink(returnFlight: ReturnFlight): string {
 
 <template>
   <div class="fixed inset-0 z-50 flex items-center justify-center bg-black/50" @click.self="emit('close')">
-    <div class="mx-4 max-h-[85vh] w-full max-w-4xl overflow-hidden rounded-xl bg-white shadow-2xl">
-      <div class="flex items-center justify-between border-b border-gray-200 bg-[#1a3a5c] px-6 py-4 text-white">
+    <div class="mx-4 max-h-[85vh] w-full max-w-4xl overflow-hidden rounded-xl bg-white shadow-2xl dark:bg-slate-900">
+      <div class="flex items-center justify-between border-b border-gray-200 bg-[#1a3a5c] px-6 py-4 text-white dark:border-slate-700 dark:bg-slate-950">
         <div>
           <h2 class="text-lg font-bold">Round Trip: {{ outboundFlight.origin }} &harr; FLL</h2>
           <p class="text-sm text-blue-200">{{ destinationName }} &middot; Return {{ formatFullDate(date) }}</p>
@@ -82,10 +82,10 @@ function buildRoundTripLink(returnFlight: ReturnFlight): string {
 
       <div class="overflow-y-auto" style="max-height: calc(85vh - 72px)">
         <!-- Outbound flight summary -->
-        <div class="border-b border-gray-200 bg-[#f0f7ff] px-6 py-4">
-          <p class="mb-1 text-xs font-semibold uppercase tracking-wide text-[#555]">Outbound Flight</p>
+        <div class="border-b border-gray-200 bg-[#f0f7ff] px-6 py-4 dark:border-slate-700 dark:bg-slate-800">
+          <p class="mb-1 text-xs font-semibold uppercase tracking-wide text-[#555] dark:text-slate-400 dark:text-slate-400">Outbound Flight</p>
           <div class="flex flex-wrap items-center gap-x-6 gap-y-1 text-sm">
-            <span class="font-bold text-[#1a3a5c]">{{ outboundFlight.origin }} &rarr; FLL</span>
+            <span class="font-bold text-[#1a3a5c] dark:text-blue-300">{{ outboundFlight.origin }} &rarr; FLL</span>
             <span>{{ formatDateLabel(outboundDate()) }}</span>
             <span>{{ outboundFlight.airlineName }}</span>
             <span>{{ formatTime(outboundFlight.departure) }} &ndash; {{ formatTime(outboundFlight.arrival) }}</span>
@@ -95,48 +95,48 @@ function buildRoundTripLink(returnFlight: ReturnFlight): string {
         </div>
 
         <div class="p-6">
-          <p class="mb-3 text-xs font-semibold uppercase tracking-wide text-[#555]">Select a return flight</p>
+          <p class="mb-3 text-xs font-semibold uppercase tracking-wide text-[#555] dark:text-slate-400 dark:text-slate-400">Select a return flight</p>
 
-          <div v-if="loading" class="flex flex-col items-center gap-4 py-12 text-[#555]">
-            <div class="size-10 animate-spin rounded-full border-4 border-[#e0e0e0] border-t-[#1a3a5c]"></div>
+          <div v-if="loading" class="flex flex-col items-center gap-4 py-12 text-[#555] dark:text-slate-400">
+            <div class="size-10 animate-spin rounded-full border-4 border-[#e0e0e0] border-t-[#1a3a5c] dark:border-slate-600 dark:border-t-blue-400"></div>
             Searching for return flights...
           </div>
 
-          <div v-else-if="flights.length === 0" class="py-12 text-center text-[#888]">
+          <div v-else-if="flights.length === 0" class="py-12 text-center text-[#888] dark:text-slate-500">
             No direct return flights found for this route.
           </div>
 
           <table v-else class="w-full border-collapse text-sm">
-            <thead class="bg-gray-100">
+            <thead class="bg-gray-100 dark:bg-slate-800">
               <tr>
-                <th class="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-[#555]">Airline</th>
-                <th class="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-[#555]">Departure</th>
-                <th class="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-[#555]">Arrival</th>
-                <th class="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-[#555]">Duration</th>
-                <th class="px-3 py-2.5 text-right text-xs font-semibold uppercase tracking-wide text-[#555]">Return</th>
-                <th class="px-3 py-2.5 text-right text-xs font-bold uppercase tracking-wide text-[#555]">Total (CAD)</th>
-                <th class="px-3 py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-[#555]"></th>
+                <th class="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-[#555] dark:text-slate-400">Airline</th>
+                <th class="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-[#555] dark:text-slate-400">Departure</th>
+                <th class="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-[#555] dark:text-slate-400">Arrival</th>
+                <th class="px-3 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-[#555] dark:text-slate-400">Duration</th>
+                <th class="px-3 py-2.5 text-right text-xs font-semibold uppercase tracking-wide text-[#555] dark:text-slate-400">Return</th>
+                <th class="px-3 py-2.5 text-right text-xs font-bold uppercase tracking-wide text-[#555] dark:text-slate-400">Total (CAD)</th>
+                <th class="px-3 py-2.5 text-center text-xs font-semibold uppercase tracking-wide text-[#555] dark:text-slate-400"></th>
               </tr>
             </thead>
             <tbody>
               <tr
                 v-for="(flight, i) in flights"
                 :key="i"
-                class="border-b border-gray-200 even:bg-gray-50 hover:bg-blue-50"
-                :class="{ '!bg-[#e8f5e9] font-medium': i === 0 }"
+                class="border-b border-gray-200 even:bg-gray-50 hover:bg-blue-50 dark:border-slate-700 dark:even:bg-slate-800 dark:hover:bg-slate-700"
+                :class="{ '!bg-[#e8f5e9] dark:!bg-green-900/40 font-medium': i === 0 }"
               >
                 <td class="px-3 py-2.5">{{ flight.airlineName }}</td>
                 <td class="px-3 py-2.5">{{ formatTime(flight.departure) }}</td>
                 <td class="px-3 py-2.5">{{ formatTime(flight.arrival) }}</td>
                 <td class="px-3 py-2.5">{{ formatDuration(flight.duration) }}</td>
-                <td class="px-3 py-2.5 text-right text-[#777]">{{ formatPrice(parseFloat(flight.price)) }}</td>
-                <td class="px-3 py-2.5 text-right font-bold whitespace-nowrap text-[#1a3a5c]">{{ formatPrice(combinedPrice(flight)) }}</td>
+                <td class="px-3 py-2.5 text-right text-[#777] dark:text-slate-400">{{ formatPrice(parseFloat(flight.price)) }}</td>
+                <td class="px-3 py-2.5 text-right font-bold whitespace-nowrap text-[#1a3a5c] dark:text-blue-300">{{ formatPrice(combinedPrice(flight)) }}</td>
                 <td class="px-3 py-2.5 text-center">
                   <a
                     :href="buildRoundTripLink(flight)"
                     target="_blank"
                     rel="noopener"
-                    class="inline-block rounded bg-[#0066cc] px-3 py-1 text-xs font-semibold text-white no-underline hover:bg-[#004499]"
+                    class="inline-block rounded bg-[#0066cc] px-3 py-1 text-xs font-semibold text-white no-underline hover:bg-[#004499] dark:bg-blue-600 dark:hover:bg-blue-500"
                   >Book Both</a>
                 </td>
               </tr>
