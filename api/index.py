@@ -351,36 +351,6 @@ class FlightsResponse(BaseModel):
 # Endpoints
 # ---------------------------------------------------------------------------
 
-@app.get("/api/flights", response_model=FlightsResponse)
-async def get_flights_endpoint():
-    loop = asyncio.get_event_loop()
-
-    tasks = [
-        loop.run_in_executor(_executor, search_all_sources, airport["code"], "FLL", d)
-        for airport in AIRPORTS
-        for d in DATES
-    ]
-
-    results = await asyncio.gather(*tasks)
-
-    all_flights = [flight for batch in results for flight in batch]
-
-    def sort_key(f: dict) -> float:
-        try:
-            return float(f["price"])
-        except (ValueError, TypeError):
-            return float("inf")
-
-    all_flights.sort(key=sort_key)
-
-    return FlightsResponse(
-        flights=all_flights,
-        airports=AIRPORTS,
-        dates=DATES,
-        searchedAt=date.today().isoformat(),
-    )
-
-
 @app.get("/api/flights/stream")
 async def stream_flights():
     """Stream flight results as Server-Sent Events as each search completes."""
@@ -424,6 +394,36 @@ async def stream_flights():
         event_generator(),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+@app.get("/api/flights", response_model=FlightsResponse)
+async def get_flights_endpoint():
+    loop = asyncio.get_event_loop()
+
+    tasks = [
+        loop.run_in_executor(_executor, search_all_sources, airport["code"], "FLL", d)
+        for airport in AIRPORTS
+        for d in DATES
+    ]
+
+    results = await asyncio.gather(*tasks)
+
+    all_flights = [flight for batch in results for flight in batch]
+
+    def sort_key(f: dict) -> float:
+        try:
+            return float(f["price"])
+        except (ValueError, TypeError):
+            return float("inf")
+
+    all_flights.sort(key=sort_key)
+
+    return FlightsResponse(
+        flights=all_flights,
+        airports=AIRPORTS,
+        dates=DATES,
+        searchedAt=date.today().isoformat(),
     )
 
 
