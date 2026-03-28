@@ -404,6 +404,34 @@ async def get_return_flights(destination: str):
     return {"flights": flights, "date": RETURN_DATE, "destination": destination}
 
 
+@app.get("/api/cheapest-returns")
+async def get_cheapest_returns():
+    """Return cheapest return flight price per airport (FLL -> each airport on Nov 22)."""
+    loop = asyncio.get_event_loop()
+
+    tasks = [
+        loop.run_in_executor(_executor, search_fast_flights, "FLL", airport["code"], RETURN_DATE)
+        for airport in AIRPORTS
+    ]
+    results = await asyncio.gather(*tasks)
+
+    cheapest: dict[str, str | None] = {}
+    for airport, flights in zip(AIRPORTS, results):
+        code = airport["code"]
+        if not flights:
+            cheapest[code] = None
+            continue
+        prices = []
+        for f in flights:
+            try:
+                prices.append(float(f["price"]))
+            except (ValueError, TypeError):
+                pass
+        cheapest[code] = str(min(prices)) if prices else None
+
+    return {"cheapestReturns": cheapest, "returnDate": RETURN_DATE}
+
+
 @app.get("/api/airports")
 async def get_airports():
     return AIRPORTS

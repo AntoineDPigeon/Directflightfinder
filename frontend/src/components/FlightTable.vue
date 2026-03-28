@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import type { Flight } from '@/types'
 
-defineProps<{
+const props = defineProps<{
   flights: Flight[]
   cheapestByAirport: Record<string, number>
+  cheapestReturns: Record<string, string | null>
+  cheapestReturnsLoading: boolean
 }>()
 
 const emit = defineEmits<{
@@ -39,6 +41,12 @@ function formatDuration(iso: string): string {
 function isCheapest(flight: Flight, cheapestByAirport: Record<string, number>): boolean {
   return parseFloat(flight.price) === cheapestByAirport[flight.origin]
 }
+
+function roundTripPrice(flight: Flight): number | null {
+  const ret = props.cheapestReturns[flight.origin]
+  if (!ret) return null
+  return parseFloat(flight.price) + parseFloat(ret)
+}
 </script>
 
 <template>
@@ -53,7 +61,8 @@ function isCheapest(flight: Flight, cheapestByAirport: Record<string, number>): 
           <th class="px-2.5 py-3 text-left text-xs font-semibold uppercase tracking-wide">Departure</th>
           <th class="px-2.5 py-3 text-left text-xs font-semibold uppercase tracking-wide">Arrival</th>
           <th class="px-2.5 py-3 text-left text-xs font-semibold uppercase tracking-wide">Duration</th>
-          <th class="px-2.5 py-3 text-right text-xs font-bold uppercase tracking-wide whitespace-nowrap">Price (CAD)</th>
+          <th class="px-2.5 py-3 text-right text-xs font-bold uppercase tracking-wide whitespace-nowrap">Outbound</th>
+          <th class="px-2.5 py-3 text-right text-xs font-bold uppercase tracking-wide whitespace-nowrap">Round Trip</th>
           <th class="px-2.5 py-3 text-center text-xs font-semibold uppercase tracking-wide"></th>
         </tr>
       </thead>
@@ -76,6 +85,13 @@ function isCheapest(flight: Flight, cheapestByAirport: Record<string, number>): 
           <td class="px-2.5 py-2.5">{{ formatTime(flight.arrival) }}</td>
           <td class="px-2.5 py-2.5">{{ formatDuration(flight.duration) }}</td>
           <td class="px-2.5 py-2.5 text-right font-bold whitespace-nowrap">{{ formatPrice(flight.price) }}</td>
+          <td class="px-2.5 py-2.5 text-right font-bold whitespace-nowrap text-[#1a3a5c] dark:text-blue-300">
+            <span v-if="cheapestReturnsLoading" class="inline-block size-3 animate-spin rounded-full border-2 border-gray-300 border-t-[#1a3a5c] dark:border-slate-600 dark:border-t-blue-400"></span>
+            <template v-else-if="roundTripPrice(flight) !== null">
+              {{ formatPrice(roundTripPrice(flight)!.toFixed(2)) }}
+            </template>
+            <span v-else class="text-[#aaa] dark:text-slate-600">--</span>
+          </td>
           <td class="px-2.5 py-2.5 text-center">
             <a
               v-if="flight.buyLink"

@@ -26,7 +26,8 @@ function formatDateLabel(dateStr: string): string {
 }
 
 const sortOptions: { value: SortField; label: string }[] = [
-  { value: 'price', label: 'Price (lowest first)' },
+  { value: 'price', label: 'Outbound price (lowest first)' },
+  { value: 'roundTrip', label: 'Round trip price (lowest first)' },
   { value: 'departure', label: 'Departure time' },
   { value: 'origin', label: 'Airport' },
   { value: 'airline', label: 'Airline' },

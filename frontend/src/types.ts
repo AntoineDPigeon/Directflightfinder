@@ -74,4 +74,9 @@ export interface FavoriteCombo {
   savedAt: string
 }
 
-export type SortField = 'price' | 'departure' | 'origin' | 'airline'
+export interface CheapestReturnsResponse {
+  cheapestReturns: Record<string, string | null>
+  returnDate: string
+}
+
+export type SortField = 'price' | 'departure' | 'origin' | 'airline' | 'roundTrip'

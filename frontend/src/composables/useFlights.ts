@@ -1,11 +1,13 @@
 import { ref } from 'vue'
-import type { Flight, Airport, FlightsResponse } from '@/types'
+import type { Flight, Airport, FlightsResponse, CheapestReturnsResponse } from '@/types'
 
 const flights = ref<Flight[]>([])
 const airports = ref<Airport[]>([])
 const dates = ref<string[]>([])
 const loading = ref(false)
 const error = ref<string | null>(null)
+const cheapestReturns = ref<Record<string, string | null>>({})
+const cheapestReturnsLoading = ref(false)
 
 export function useFlights() {
   async function fetchFlights() {
@@ -29,5 +31,20 @@ export function useFlights() {
     }
   }
 
-  return { flights, airports, dates, loading, error, fetchFlights }
+  async function fetchCheapestReturns() {
+    cheapestReturnsLoading.value = true
+    try {
+      const resp = await fetch('/api/cheapest-returns')
+      if (!resp.ok) return
+      const data: CheapestReturnsResponse = await resp.json()
+      cheapestReturns.value = data.cheapestReturns
+    } catch {
+      // silently fail -- round trip column just won't show prices
+    } finally {
+      cheapestReturnsLoading.value = false
+    }
+  }
+
+  return { flights, airports, dates, loading, error, fetchFlights,
+           cheapestReturns, cheapestReturnsLoading, fetchCheapestReturns }
 }

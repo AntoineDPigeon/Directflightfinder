@@ -7,7 +7,8 @@ import ReturnFlightsModal from '@/components/ReturnFlightsModal.vue'
 import FavoriteCombos from '@/components/FavoriteCombos.vue'
 import type { SortField, Flight, ReturnFlight, FavoriteCombo } from '@/types'
 
-const { flights, airports, dates, loading, error, fetchFlights } = useFlights()
+const { flights, airports, dates, loading, error, fetchFlights,
+        cheapestReturns, cheapestReturnsLoading, fetchCheapestReturns } = useFlights()
 
 const darkMode = ref(localStorage.getItem('darkMode') === 'true')
 
@@ -114,7 +115,9 @@ const returnDate = ref('')
 const selectedOutboundFlight = ref<Flight | null>(null)
 
 onMounted(async () => {
-  await fetchFlights()
+  const flightsPromise = fetchFlights()
+  fetchCheapestReturns()
+  await flightsPromise
   selectedAirports.value = new Set(airports.value.map((a) => a.code))
   selectedDates.value = new Set(dates.value)
   if (favorites.value.length > 0) refreshFavPrices()
@@ -161,6 +164,13 @@ function sortFlights(a: Flight, b: Flight): number {
       return a.origin.localeCompare(b.origin) || parseFloat(a.price) - parseFloat(b.price)
     case 'airline':
       return a.airlineName.localeCompare(b.airlineName) || parseFloat(a.price) - parseFloat(b.price)
+    case 'roundTrip': {
+      const aRet = cheapestReturns.value[a.origin]
+      const bRet = cheapestReturns.value[b.origin]
+      const aTotal = aRet ? parseFloat(a.price) + parseFloat(aRet) : Infinity
+      const bTotal = bRet ? parseFloat(b.price) + parseFloat(bRet) : Infinity
+      return aTotal - bTotal
+    }
     default:
       return 0
   }
@@ -259,7 +269,7 @@ async function onSelectFlight(flight: Flight) {
     <template v-else>
       <p class="mt-4 mb-2 text-sm text-[#555] dark:text-slate-400">{{ resultCount }} flight{{ resultCount !== 1 ? 's' : '' }} found</p>
       <p class="mt-1 mb-4 text-xs text-[#888] dark:text-slate-500">Click a flight to see return options from FLL on Nov 22</p>
-      <FlightTable :flights="filteredFlights" :cheapestByAirport="cheapestByAirport" @select-flight="onSelectFlight" />
+      <FlightTable :flights="filteredFlights" :cheapestByAirport="cheapestByAirport" :cheapestReturns="cheapestReturns" :cheapestReturnsLoading="cheapestReturnsLoading" @select-flight="onSelectFlight" />
     </template>
 
     <ReturnFlightsModal
