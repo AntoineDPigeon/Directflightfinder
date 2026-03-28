@@ -64,6 +64,36 @@ SEARCH_YEAR = 2026
 RAPIDAPI_KEY = os.environ.get("RAPIDAPI_KEY", "")
 RAPIDAPI_HOST = "google-flights-live-api.p.rapidapi.com"
 
+# ---------------------------------------------------------------------------
+# USD → CAD conversion via Bank of Canada
+# ---------------------------------------------------------------------------
+
+_usd_cad_rate: float | None = None
+_usd_cad_fetched: float = 0
+
+
+def get_usd_to_cad() -> float:
+    """Fetch current USD→CAD rate from Bank of Canada. Cached for 6 hours."""
+    global _usd_cad_rate, _usd_cad_fetched
+    if _usd_cad_rate and time.time() - _usd_cad_fetched < 21600:
+        return _usd_cad_rate
+
+    try:
+        resp = requests.get(
+            "https://www.bankofcanada.ca/valet/observations/FXUSDCAD/json",
+            params={"recent": 1},
+            timeout=10,
+        )
+        obs = resp.json()["observations"][0]
+        _usd_cad_rate = float(obs["FXUSDCAD"]["v"])
+        _usd_cad_fetched = time.time()
+        print(f"[fx] USD→CAD rate: {_usd_cad_rate}")
+    except Exception as e:
+        print(f"[fx] Failed to fetch rate: {e}")
+        if not _usd_cad_rate:
+            _usd_cad_rate = 1.39  # fallback
+    return _usd_cad_rate
+
 
 # ---------------------------------------------------------------------------
 # Time parsing helper (for fast-flights responses)
@@ -212,7 +242,9 @@ def search_rapidapi(origin: str, destination: str, departure_date: str) -> list[
             if f.get("stops", 0) > 0:
                 continue
 
-            price_str = str(f.get("price_as_number", 0))
+            usd_price = f.get("price_as_number", 0)
+            cad_price = round(usd_price * get_usd_to_cad(), 2)
+            price_str = str(cad_price)
             departure_iso = parse_flight_time(
                 f.get("departure_description", ""), departure_date
             )
@@ -238,7 +270,7 @@ def search_rapidapi(origin: str, destination: str, departure_date: str) -> list[
                     "airline": airline_name,
                     "airlineName": airline_name,
                     "price": price_str,
-                    "currency": "USD",
+                    "currency": "CAD",
                     "departure": departure_iso,
                     "arrival": arrival_iso,
                     "duration": duration_iso,

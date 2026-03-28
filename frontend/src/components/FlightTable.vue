@@ -53,7 +53,7 @@ function isCheapest(flight: Flight, cheapestByAirport: Record<string, number>): 
           <th class="px-2.5 py-3 text-left text-xs font-semibold uppercase tracking-wide">Departure</th>
           <th class="px-2.5 py-3 text-left text-xs font-semibold uppercase tracking-wide">Arrival</th>
           <th class="px-2.5 py-3 text-left text-xs font-semibold uppercase tracking-wide">Duration</th>
-          <th class="px-2.5 py-3 text-right text-xs font-bold uppercase tracking-wide whitespace-nowrap">Price</th>
+          <th class="px-2.5 py-3 text-right text-xs font-bold uppercase tracking-wide whitespace-nowrap">Price (CAD)</th>
           <th class="px-2.5 py-3 text-center text-xs font-semibold uppercase tracking-wide"></th>
         </tr>
       </thead>
@@ -75,10 +75,7 @@ function isCheapest(flight: Flight, cheapestByAirport: Record<string, number>): 
           <td class="px-2.5 py-2.5">{{ formatTime(flight.departure) }}</td>
           <td class="px-2.5 py-2.5">{{ formatTime(flight.arrival) }}</td>
           <td class="px-2.5 py-2.5">{{ formatDuration(flight.duration) }}</td>
-          <td class="px-2.5 py-2.5 text-right font-bold whitespace-nowrap">
-            {{ formatPrice(flight.price, flight.currency) }}
-            <span class="ml-1 text-xs font-normal text-[#999]">{{ flight.currency }}</span>
-          </td>
+          <td class="px-2.5 py-2.5 text-right font-bold whitespace-nowrap">{{ formatPrice(flight.price) }}</td>
           <td class="px-2.5 py-2.5 text-center">
             <a
               v-if="flight.buyLink"
