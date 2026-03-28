@@ -49,4 +49,29 @@ export interface FlightsResponse {
   searchedAt: string
 }
 
+export interface FavoriteCombo {
+  id: string
+  outbound: {
+    origin: string
+    originName: string
+    airline: string
+    departure: string
+    arrival: string
+    duration: string
+    price: string
+    buyLink?: string
+  }
+  returnFlight: {
+    airline: string
+    departure: string
+    arrival: string
+    duration: string
+    price: string
+    buyLink?: string
+  }
+  returnDate: string
+  savedTotal: string
+  savedAt: string
+}
+
 export type SortField = 'price' | 'departure' | 'origin' | 'airline'

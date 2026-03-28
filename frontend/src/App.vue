@@ -4,7 +4,8 @@ import { useFlights } from '@/composables/useFlights'
 import FlightFilters from '@/components/FlightFilters.vue'
 import FlightTable from '@/components/FlightTable.vue'
 import ReturnFlightsModal from '@/components/ReturnFlightsModal.vue'
-import type { SortField, Flight, ReturnFlight } from '@/types'
+import FavoriteCombos from '@/components/FavoriteCombos.vue'
+import type { SortField, Flight, ReturnFlight, FavoriteCombo } from '@/types'
 
 const { flights, airports, dates, loading, error, fetchFlights } = useFlights()
 
@@ -14,6 +15,91 @@ watch(darkMode, (val) => {
   document.documentElement.classList.toggle('dark', val)
   localStorage.setItem('darkMode', String(val))
 }, { immediate: true })
+
+// Favorites
+const favorites = ref<FavoriteCombo[]>(JSON.parse(localStorage.getItem('favorites') || '[]'))
+const currentFavPrices = ref<Record<string, { outbound: string; ret: string } | null>>({})
+
+function saveFavorites() {
+  localStorage.setItem('favorites', JSON.stringify(favorites.value))
+}
+
+function saveCombo(outbound: Flight, returnFlight: ReturnFlight, returnDate: string) {
+  const total = (parseFloat(outbound.price) + parseFloat(returnFlight.price)).toFixed(2)
+  const id = `${outbound.origin}-${outbound.departure}-${outbound.airline}-${returnFlight.departure}-${returnFlight.airline}`
+
+  if (favorites.value.some((f) => f.id === id)) return
+
+  favorites.value.push({
+    id,
+    outbound: {
+      origin: outbound.origin,
+      originName: outbound.originName,
+      airline: outbound.airlineName,
+      departure: outbound.departure,
+      arrival: outbound.arrival,
+      duration: outbound.duration,
+      price: outbound.price,
+      buyLink: outbound.buyLink,
+    },
+    returnFlight: {
+      airline: returnFlight.airlineName,
+      departure: returnFlight.departure,
+      arrival: returnFlight.arrival,
+      duration: returnFlight.duration,
+      price: returnFlight.price,
+      buyLink: returnFlight.buyLink,
+    },
+    returnDate,
+    savedTotal: total,
+    savedAt: new Date().toISOString(),
+  })
+  saveFavorites()
+  refreshFavPrices()
+}
+
+function removeFavorite(id: string) {
+  favorites.value = favorites.value.filter((f) => f.id !== id)
+  saveFavorites()
+}
+
+async function refreshFavPrices() {
+  for (const fav of favorites.value) {
+    currentFavPrices.value[fav.id] = null
+    try {
+      const outDate = fav.outbound.departure.slice(0, 10)
+      const [outResp, retResp] = await Promise.all([
+        fetch(`/api/flights`),
+        fetch(`/api/return-flights?destination=${fav.outbound.origin}`),
+      ])
+      if (!outResp.ok || !retResp.ok) continue
+
+      const outData = await outResp.json()
+      const retData = await retResp.json()
+
+      const matchOut = outData.flights.find(
+        (f: Flight) =>
+          f.origin === fav.outbound.origin &&
+          f.airlineName === fav.outbound.airline &&
+          f.departure === fav.outbound.departure
+      )
+      const matchRet = retData.flights.find(
+        (f: ReturnFlight) =>
+          f.airlineName === fav.returnFlight.airline &&
+          f.departure === fav.returnFlight.departure
+      )
+
+      if (matchOut && matchRet) {
+        currentFavPrices.value[fav.id] = {
+          outbound: matchOut.price,
+          ret: matchRet.price,
+        }
+      }
+    } catch {
+      // keep as null
+    }
+  }
+}
 
 const selectedAirports = ref<Set<string>>(new Set())
 const selectedDates = ref<Set<string>>(new Set())
@@ -31,6 +117,7 @@ onMounted(async () => {
   await fetchFlights()
   selectedAirports.value = new Set(airports.value.map((a) => a.code))
   selectedDates.value = new Set(dates.value)
+  if (favorites.value.length > 0) refreshFavPrices()
 })
 
 function toggleAirport(code: string) {
@@ -139,6 +226,12 @@ async function onSelectFlight(flight: Flight) {
       </p>
     </header>
 
+    <FavoriteCombos
+      :favorites="favorites"
+      :currentPrices="currentFavPrices"
+      @remove="removeFavorite"
+    />
+
     <FlightFilters
       :airports="airports"
       :dates="dates"
@@ -178,6 +271,7 @@ async function onSelectFlight(flight: Flight) {
       :date="returnDate"
       :loading="returnLoading"
       @close="showReturnModal = false"
+      @save-combo="saveCombo"
     />
 
     <footer class="mt-8 text-center text-xs text-[#999] dark:text-slate-500">

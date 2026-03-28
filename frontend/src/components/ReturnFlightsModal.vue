@@ -12,6 +12,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   close: []
+  saveCombo: [outbound: typeof props.outboundFlight, returnFlight: typeof props.flights[number], returnDate: string]
 }>()
 
 function formatPrice(price: number): string {
@@ -132,12 +133,19 @@ function buildRoundTripLink(returnFlight: ReturnFlight): string {
                 <td class="px-3 py-2.5 text-right text-[#777] dark:text-slate-400">{{ formatPrice(parseFloat(flight.price)) }}</td>
                 <td class="px-3 py-2.5 text-right font-bold whitespace-nowrap text-[#1a3a5c] dark:text-blue-300">{{ formatPrice(combinedPrice(flight)) }}</td>
                 <td class="px-3 py-2.5 text-center">
-                  <a
-                    :href="buildRoundTripLink(flight)"
-                    target="_blank"
-                    rel="noopener"
-                    class="inline-block rounded bg-[#0066cc] px-3 py-1 text-xs font-semibold text-white no-underline hover:bg-[#004499] dark:bg-blue-600 dark:hover:bg-blue-500"
-                  >Book Both</a>
+                  <div class="flex items-center justify-center gap-1.5">
+                    <button
+                      @click="emit('saveCombo', outboundFlight, flight, date)"
+                      class="cursor-pointer rounded border-none bg-amber-500 px-2.5 py-1 text-xs font-semibold text-white hover:bg-amber-600 dark:bg-amber-600 dark:hover:bg-amber-500"
+                      title="Save this combination"
+                    >Save</button>
+                    <a
+                      :href="buildRoundTripLink(flight)"
+                      target="_blank"
+                      rel="noopener"
+                      class="inline-block rounded bg-[#0066cc] px-2.5 py-1 text-xs font-semibold text-white no-underline hover:bg-[#004499] dark:bg-blue-600 dark:hover:bg-blue-500"
+                    >Book</a>
+                  </div>
                 </td>
               </tr>
             </tbody>
