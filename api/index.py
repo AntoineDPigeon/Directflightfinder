@@ -354,39 +354,31 @@ class FlightsResponse(BaseModel):
 @app.get("/api/flights/stream")
 async def stream_flights():
     """Stream flight results as Server-Sent Events as each search completes."""
-    loop = asyncio.get_event_loop()
 
     async def event_generator():
-        # Send airports and dates first
         yield f"data: {json.dumps({'type': 'init', 'airports': AIRPORTS, 'dates': DATES})}\n\n"
 
-        # Create a task per airport+date combo
-        pending: dict[asyncio.Task, tuple[str, str]] = {}
+        queue: asyncio.Queue = asyncio.Queue()
+        total = len(AIRPORTS) * len(DATES)
+
+        async def run_search(origin: str, dest: str, d: str):
+            loop = asyncio.get_event_loop()
+            try:
+                result = await loop.run_in_executor(
+                    _executor, search_all_sources, origin, dest, d
+                )
+            except Exception:
+                result = []
+            await queue.put(result)
+
+        # Launch all searches concurrently
         for airport in AIRPORTS:
             for d in DATES:
-                task = asyncio.create_task(
-                    loop.run_in_executor(
-                        _executor, search_all_sources, airport["code"], "FLL", d
-                    )
-                )
-                pending[task] = (airport["code"], d)
+                asyncio.ensure_future(run_search(airport["code"], "FLL", d))
 
-        total = len(pending)
-        done_count = 0
-
-        while pending:
-            done, _ = await asyncio.wait(
-                pending.keys(), return_when=asyncio.FIRST_COMPLETED
-            )
-            for task in done:
-                origin, d = pending.pop(task)
-                done_count += 1
-                try:
-                    flights = task.result()
-                except Exception:
-                    flights = []
-
-                yield f"data: {json.dumps({'type': 'flights', 'flights': flights, 'progress': done_count, 'total': total})}\n\n"
+        for done_count in range(1, total + 1):
+            flights = await queue.get()
+            yield f"data: {json.dumps({'type': 'flights', 'flights': flights, 'progress': done_count, 'total': total})}\n\n"
 
         yield f"data: {json.dumps({'type': 'done', 'searchedAt': date.today().isoformat()})}\n\n"
 
