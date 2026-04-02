@@ -420,11 +420,13 @@ async def get_flights_endpoint():
 
 
 @app.get("/api/flights/airport")
-async def get_flights_for_airport(origin: str):
-    """Search flights for a single airport across all dates."""
+async def get_flights_for_airport(origin: str, dates: str | None = None):
+    """Search flights for a single airport. Optional dates param (comma-separated)."""
     valid_codes = {a["code"] for a in AIRPORTS}
     if origin not in valid_codes:
         raise HTTPException(status_code=400, detail=f"Unknown airport code: {origin}")
+
+    search_dates = dates.split(",") if dates else DATES
 
     loop = asyncio.get_event_loop()
     tasks = [
@@ -432,7 +434,8 @@ async def get_flights_for_airport(origin: str):
             loop.run_in_executor(_executor, search_all_sources, origin, "FLL", d),
             timeout=20,
         )
-        for d in DATES
+        for d in search_dates
+        if d in DATES
     ]
     results = await asyncio.gather(*tasks, return_exceptions=True)
     flights = [f for r in results if isinstance(r, list) for f in r]

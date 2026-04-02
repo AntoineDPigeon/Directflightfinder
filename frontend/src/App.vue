@@ -8,7 +8,8 @@ import FavoriteCombos from '@/components/FavoriteCombos.vue'
 import type { SortField, Flight, ReturnFlight, FavoriteCombo } from '@/types'
 
 const { flights, airports, dates, loading, error, progress, progressTotal,
-        fetchFlights, cheapestReturns, cheapestReturnsLoading, fetchCheapestReturns } = useFlights()
+        fetchFlights, fetchAirportsAndDates,
+        cheapestReturns, cheapestReturnsLoading, fetchCheapestReturns } = useFlights()
 
 const darkMode = ref(localStorage.getItem('darkMode') === 'true')
 
@@ -102,9 +103,18 @@ async function refreshFavPrices() {
   }
 }
 
-const selectedAirports = ref<Set<string>>(new Set())
-const selectedDates = ref<Set<string>>(new Set())
+const savedAirports = localStorage.getItem('selectedAirports')
+const savedDates = localStorage.getItem('selectedDates')
+const selectedAirports = ref<Set<string>>(savedAirports ? new Set(JSON.parse(savedAirports)) : new Set())
+const selectedDates = ref<Set<string>>(savedDates ? new Set(JSON.parse(savedDates)) : new Set())
 const sortField = ref<SortField>('price')
+
+watch(selectedAirports, (val) => {
+  localStorage.setItem('selectedAirports', JSON.stringify([...val]))
+}, { deep: true })
+watch(selectedDates, (val) => {
+  localStorage.setItem('selectedDates', JSON.stringify([...val]))
+}, { deep: true })
 
 const showReturnModal = ref(false)
 const returnFlights = ref<ReturnFlight[]>([])
@@ -114,24 +124,28 @@ const returnDestinationName = ref('')
 const returnDate = ref('')
 const selectedOutboundFlight = ref<Flight | null>(null)
 
-// Initialize filters when airports arrive via SSE
-watch(airports, (val) => {
-  if (val.length > 0 && selectedAirports.value.size === 0) {
-    selectedAirports.value = new Set(val.map((a) => a.code))
-  }
-})
-watch(dates, (val) => {
-  if (val.length > 0 && selectedDates.value.size === 0) {
-    selectedDates.value = new Set(val)
-  }
-})
+onMounted(async () => {
+  // Load airports/dates metadata first
+  await fetchAirportsAndDates()
 
-onMounted(() => {
-  fetchFlights().then(() => {
-    if (favorites.value.length > 0) refreshFavPrices()
-  })
+  // If no saved selections, select all
+  if (selectedAirports.value.size === 0) {
+    selectedAirports.value = new Set(airports.value.map((a) => a.code))
+  }
+  if (selectedDates.value.size === 0) {
+    selectedDates.value = new Set(dates.value)
+  }
+
+  // Search with saved selections
+  searchFlights()
   fetchCheapestReturns()
 })
+
+function searchFlights() {
+  fetchFlights(selectedAirports.value, selectedDates.value).then(() => {
+    if (favorites.value.length > 0) refreshFavPrices()
+  })
+}
 
 function toggleAirport(code: string) {
   const s = new Set(selectedAirports.value)
@@ -272,6 +286,14 @@ async function onSelectFlight(flight: Flight) {
       @select-all-dates="selectAllDates"
       @clear-all-dates="clearAllDates"
     />
+
+    <button
+      @click="searchFlights"
+      :disabled="loading || selectedAirports.size === 0 || selectedDates.size === 0"
+      class="mt-4 w-full cursor-pointer rounded-lg bg-[#1a3a5c] px-6 py-3 text-sm font-bold text-white hover:bg-[#15304d] disabled:cursor-not-allowed disabled:opacity-50 dark:bg-blue-600 dark:hover:bg-blue-500"
+    >
+      {{ loading ? 'Searching...' : `Search ${selectedAirports.size} airport${selectedAirports.size !== 1 ? 's' : ''} × ${selectedDates.size} date${selectedDates.size !== 1 ? 's' : ''}` }}
+    </button>
 
     <div v-if="error && !loading && filteredFlights.length === 0" class="rounded-lg bg-[#fce4ec] px-4 py-12 text-center text-lg text-[#c62828] dark:bg-red-900/30 dark:text-red-400">
       {{ error }}

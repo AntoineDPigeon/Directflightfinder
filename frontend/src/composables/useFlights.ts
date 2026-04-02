@@ -12,7 +12,18 @@ const cheapestReturns = ref<Record<string, CheapestReturnFlight | null>>({})
 const cheapestReturnsLoading = ref(false)
 
 export function useFlights() {
-  async function fetchFlights() {
+  async function fetchAirportsAndDates() {
+    const metaResp = await fetch('/api/airports')
+    if (!metaResp.ok) throw new Error('Failed to fetch airport list')
+    const meta = await metaResp.json()
+    const airportList: Airport[] = Array.isArray(meta) ? meta : meta.airports
+    const dateList: string[] = Array.isArray(meta) ? [] : (meta.dates || [])
+    airports.value = airportList
+    dates.value = dateList
+    return { airportList, dateList }
+  }
+
+  async function fetchFlights(selectedAirports?: Set<string>, selectedDates?: Set<string>) {
     loading.value = true
     error.value = null
     flights.value = []
@@ -20,27 +31,33 @@ export function useFlights() {
     progressTotal.value = 0
 
     try {
-      // Get airports and dates
-      const metaResp = await fetch('/api/airports')
-      if (!metaResp.ok) throw new Error('Failed to fetch airport list')
-      const meta = await metaResp.json()
+      // Ensure airports/dates are loaded
+      let airportList = airports.value
+      if (airportList.length === 0) {
+        const meta = await fetchAirportsAndDates()
+        airportList = meta.airportList
+      }
 
-      // Handle both formats: {airports, dates} or plain array
-      const airportList: Airport[] = Array.isArray(meta) ? meta : meta.airports
-      const dateList: string[] = Array.isArray(meta) ? [] : (meta.dates || [])
-      airports.value = airportList
-      dates.value = dateList
+      // Filter to only selected airports
+      const airportsToSearch = selectedAirports
+        ? airportList.filter((a) => selectedAirports.has(a.code))
+        : airportList
 
-      // Fetch flights per airport in parallel — results appear as each completes
-      progressTotal.value = airportList.length
+      // Build dates query param
+      const datesParam = selectedDates && selectedDates.size > 0
+        ? Array.from(selectedDates).join(',')
+        : ''
 
-      const promises = airportList.map(async (airport) => {
+      progressTotal.value = airportsToSearch.length
+
+      const promises = airportsToSearch.map(async (airport) => {
         const controller = new AbortController()
         const timeout = setTimeout(() => controller.abort(), 20000)
         try {
-          const resp = await fetch(`/api/flights/airport?origin=${airport.code}`, {
-            signal: controller.signal,
-          })
+          const url = datesParam
+            ? `/api/flights/airport?origin=${airport.code}&dates=${datesParam}`
+            : `/api/flights/airport?origin=${airport.code}`
+          const resp = await fetch(url, { signal: controller.signal })
           if (!resp.ok) return
           const data = await resp.json()
           flights.value = [...flights.value, ...data.flights]
@@ -53,15 +70,6 @@ export function useFlights() {
       })
 
       await Promise.all(promises)
-
-      // Infer dates from flights if not provided by API
-      if (dates.value.length === 0 && flights.value.length > 0) {
-        const dateSet = new Set<string>()
-        for (const f of flights.value) {
-          dateSet.add(f.departure.slice(0, 10))
-        }
-        dates.value = [...dateSet].sort()
-      }
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Failed to fetch flights'
     } finally {
@@ -87,5 +95,6 @@ export function useFlights() {
   }
 
   return { flights, airports, dates, loading, error, progress, progressTotal,
-           fetchFlights, cheapestReturns, cheapestReturnsLoading, fetchCheapestReturns }
+           fetchFlights, fetchAirportsAndDates,
+           cheapestReturns, cheapestReturnsLoading, fetchCheapestReturns }
 }
