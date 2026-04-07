@@ -50,26 +50,30 @@ export function useFlights() {
 
       progressTotal.value = airportsToSearch.length
 
-      const promises = airportsToSearch.map(async (airport) => {
-        const controller = new AbortController()
-        const timeout = setTimeout(() => controller.abort(), 20000)
-        try {
-          const url = datesParam
-            ? `/api/flights/airport?origin=${airport.code}&dates=${datesParam}`
-            : `/api/flights/airport?origin=${airport.code}`
-          const resp = await fetch(url, { signal: controller.signal })
-          if (!resp.ok) return
-          const data = await resp.json()
-          flights.value = [...flights.value, ...data.flights]
-        } catch {
-          // skip failed or timed-out airport
-        } finally {
-          clearTimeout(timeout)
-          progress.value++
-        }
-      })
-
-      await Promise.all(promises)
+      // Fetch in batches of 3 to avoid overwhelming serverless functions
+      const batchSize = 3
+      for (let i = 0; i < airportsToSearch.length; i += batchSize) {
+        const batch = airportsToSearch.slice(i, i + batchSize)
+        const promises = batch.map(async (airport) => {
+          const controller = new AbortController()
+          const timeout = setTimeout(() => controller.abort(), 55000)
+          try {
+            const url = datesParam
+              ? `/api/flights/airport?origin=${airport.code}&dates=${datesParam}`
+              : `/api/flights/airport?origin=${airport.code}`
+            const resp = await fetch(url, { signal: controller.signal })
+            if (!resp.ok) return
+            const data = await resp.json()
+            flights.value = [...flights.value, ...data.flights]
+          } catch {
+            // skip failed or timed-out airport
+          } finally {
+            clearTimeout(timeout)
+            progress.value++
+          }
+        })
+        await Promise.all(promises)
+      }
     } catch (e) {
       error.value = e instanceof Error ? e.message : 'Failed to fetch flights'
     } finally {

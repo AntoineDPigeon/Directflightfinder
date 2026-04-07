@@ -59,7 +59,7 @@ AIRPORT_NAMES = {a["code"]: a["name"] for a in AIRPORTS}
 _flight_cache: dict[tuple[str, str, str, str], tuple[float, list]] = {}
 CACHE_TTL = 900  # 15 minutes
 
-_executor = ThreadPoolExecutor(max_workers=5)
+_executor = ThreadPoolExecutor(max_workers=10)
 
 SEARCH_YEAR = 2026
 
@@ -295,11 +295,22 @@ def search_rapidapi(origin: str, destination: str, departure_date: str) -> list[
 # ---------------------------------------------------------------------------
 
 def search_all_sources(origin: str, destination: str, departure_date: str) -> list[dict]:
-    """Search both sources and deduplicate results."""
-    fast = search_fast_flights(origin, destination, departure_date)
-    rapid = search_rapidapi(origin, destination, departure_date)
+    """Search both sources in parallel and deduplicate results."""
+    from concurrent.futures import ThreadPoolExecutor as _TPE, as_completed
 
-    return deduplicate_flights(fast + rapid)
+    results: list[dict] = []
+    with _TPE(max_workers=2) as pool:
+        futures = {
+            pool.submit(search_fast_flights, origin, destination, departure_date): "fast",
+            pool.submit(search_rapidapi, origin, destination, departure_date): "rapid",
+        }
+        for future in as_completed(futures, timeout=15):
+            try:
+                results.extend(future.result())
+            except Exception as e:
+                print(f"[{futures[future]}] Error {origin}->{destination} {departure_date}: {e}")
+
+    return deduplicate_flights(results)
 
 
 def deduplicate_flights(flights: list[dict]) -> list[dict]:
@@ -432,12 +443,15 @@ async def get_flights_for_airport(origin: str, dates: str | None = None):
     tasks = [
         asyncio.wait_for(
             loop.run_in_executor(_executor, search_all_sources, origin, "FLL", d),
-            timeout=20,
+            timeout=12,
         )
         for d in search_dates
         if d in DATES
     ]
     results = await asyncio.gather(*tasks, return_exceptions=True)
+    timed_out = sum(1 for r in results if isinstance(r, Exception))
+    if timed_out:
+        print(f"[airport] {origin}: {timed_out}/{len(tasks)} dates timed out")
     flights = [f for r in results if isinstance(r, list) for f in r]
     return {"flights": flights, "origin": origin}
 
