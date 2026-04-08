@@ -226,7 +226,7 @@ def search_rapidapi(origin: str, destination: str, departure_date: str) -> list[
                 "from_airport": origin,
                 "to_airport": destination,
             },
-            timeout=15,
+            timeout=8,
         )
 
         if resp.status_code != 200:
@@ -304,11 +304,21 @@ def search_all_sources(origin: str, destination: str, departure_date: str) -> li
             pool.submit(search_fast_flights, origin, destination, departure_date): "fast",
             pool.submit(search_rapidapi, origin, destination, departure_date): "rapid",
         }
-        for future in as_completed(futures, timeout=15):
-            try:
-                results.extend(future.result())
-            except Exception as e:
-                print(f"[{futures[future]}] Error {origin}->{destination} {departure_date}: {e}")
+        try:
+            for future in as_completed(futures, timeout=10):
+                try:
+                    results.extend(future.result())
+                except Exception as e:
+                    print(f"[{futures[future]}] Error {origin}->{destination} {departure_date}: {e}")
+        except TimeoutError:
+            print(f"[search] Timed out waiting for sources {origin}->{destination} {departure_date}")
+            # Collect any results that did finish
+            for future in futures:
+                if future.done():
+                    try:
+                        results.extend(future.result())
+                    except Exception:
+                        pass
 
     return deduplicate_flights(results)
 
@@ -437,22 +447,30 @@ async def get_flights_for_airport(origin: str, dates: str | None = None):
     if origin not in valid_codes:
         raise HTTPException(status_code=400, detail=f"Unknown airport code: {origin}")
 
-    search_dates = dates.split(",") if dates else DATES
+    search_dates = [d for d in (dates.split(",") if dates else DATES) if d in DATES]
 
     loop = asyncio.get_event_loop()
+    # Fire all date searches concurrently
     tasks = [
-        asyncio.wait_for(
-            loop.run_in_executor(_executor, search_all_sources, origin, "FLL", d),
-            timeout=12,
-        )
+        loop.run_in_executor(_executor, search_all_sources, origin, "FLL", d)
         for d in search_dates
-        if d in DATES
     ]
-    results = await asyncio.gather(*tasks, return_exceptions=True)
-    timed_out = sum(1 for r in results if isinstance(r, Exception))
-    if timed_out:
-        print(f"[airport] {origin}: {timed_out}/{len(tasks)} dates timed out")
-    flights = [f for r in results if isinstance(r, list) for f in r]
+
+    # Wait up to 45s total, return whatever we have
+    done, pending = await asyncio.wait(tasks, timeout=45)
+
+    flights: list[dict] = []
+    for task in done:
+        try:
+            flights.extend(task.result())
+        except Exception as e:
+            print(f"[airport] {origin} task error: {e}")
+
+    if pending:
+        print(f"[airport] {origin}: {len(pending)}/{len(tasks)} dates still pending after 45s")
+        for task in pending:
+            task.cancel()
+
     return {"flights": flights, "origin": origin}
 
 
