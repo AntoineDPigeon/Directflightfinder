@@ -485,9 +485,17 @@ async def get_return_flights(destination: str):
         raise HTTPException(status_code=400, detail=f"Unknown airport code: {destination}")
 
     loop = asyncio.get_event_loop()
-    flights = await loop.run_in_executor(
+    task = loop.run_in_executor(
         _executor, search_all_sources, "FLL", destination, RETURN_DATE
     )
+
+    done, _ = await asyncio.wait([task], timeout=45)
+    flights: list[dict] = []
+    if done:
+        try:
+            flights = list(done)[0].result()
+        except Exception as e:
+            print(f"[return-flights] Error for {destination}: {e}")
 
     def sort_key(f: dict) -> float:
         try:
@@ -504,17 +512,34 @@ async def get_cheapest_returns():
     """Return cheapest return flight price per airport (FLL -> each airport on Nov 22)."""
     loop = asyncio.get_event_loop()
 
-    tasks = [
-        loop.run_in_executor(_executor, search_fast_flights, "FLL", airport["code"], RETURN_DATE)
-        for airport in AIRPORTS
-    ]
-    results = await asyncio.gather(*tasks)
+    # Map each task back to its airport code
+    task_to_code: dict[asyncio.Future, str] = {}
+    for airport in AIRPORTS:
+        task = loop.run_in_executor(
+            _executor, search_all_sources, "FLL", airport["code"], RETURN_DATE
+        )
+        task_to_code[task] = airport["code"]
+
+    # Wait up to 45s, return whatever we have
+    done, pending = await asyncio.wait(task_to_code.keys(), timeout=45)
+
+    if pending:
+        print(f"[cheapest-returns] {len(pending)}/{len(AIRPORTS)} airports still pending after 45s")
+        for task in pending:
+            task.cancel()
 
     cheapest: dict[str, dict | None] = {}
-    for airport, flights in zip(AIRPORTS, results):
-        code = airport["code"]
+    # Initialize all as None
+    for airport in AIRPORTS:
+        cheapest[airport["code"]] = None
+
+    for task in done:
+        code = task_to_code[task]
+        try:
+            flights = task.result()
+        except Exception:
+            continue
         if not flights:
-            cheapest[code] = None
             continue
         best = None
         best_price = float("inf")
